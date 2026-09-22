@@ -1,0 +1,39 @@
+name: Windows Release Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installers:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build Windows EXE and MSI
+        shell: pwsh
+        run: .\gradlew.bat :desktop:packageExe :desktop:packageMsi --stacktrace
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrimoMusic-Windows-${{ github.ref_name }}
+          if-no-files-found: error
+          path: |
+            desktop/build/compose/binaries/main/exe/*.exe
+            desktop/build/compose/binaries/main/msi/*.msi
