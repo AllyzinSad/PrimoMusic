@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Logo.png" alt="Primo Music" width="180" />
+<img src="Logo.png" alt="Primo Music" width="220" />
 
 # Primo Music
 
