@@ -222,6 +222,7 @@ fun main() {
     application {
         val windowState = rememberWindowState(width = 1420.dp, height = 900.dp)
         val appIcon = painterResource("branding/p-music-icon.png")
+        val player = remember { DesktopAudioPlayer() }
     
         var theme by remember { mutableStateOf(DesktopPreferences.theme()) }
         var liquidGlass by remember { mutableStateOf(DesktopPreferences.liquidGlassEnabled()) }
