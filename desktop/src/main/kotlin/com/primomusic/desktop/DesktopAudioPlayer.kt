@@ -150,6 +150,13 @@ class DesktopAudioPlayer(
     @Volatile
     private var activePlayJob: Job? = null
 
+    @Volatile
+    private var gamerMode = false
+
+    fun setGamerMode(enabled: Boolean) {
+        gamerMode = enabled
+    }
+
     suspend fun play(
         videoId: String,
         volume: Double,
@@ -1076,7 +1083,7 @@ class DesktopAudioPlayer(
                 "--ytdl=no",
 
                 "--cache=yes",
-                "--cache-secs=20",
+                "--cache-secs=${if (gamerMode) 8 else 20}",
                 "--cache-pause=yes",
                 "--network-timeout=12",
 
@@ -1297,7 +1304,7 @@ class DesktopAudioPlayer(
                 }
 
                 Thread.sleep(
-                    250
+                    if (gamerMode) 650 else 250
                 )
             }
         }
