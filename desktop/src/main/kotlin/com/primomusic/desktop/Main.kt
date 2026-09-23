@@ -133,15 +133,16 @@ private data class Palette(
     val muted: Color,
 )
 
-private val Dark = Palette(
-    bg = Color(0xFF090A0F), sidebar = Color(0xFF0D0F15), surface = Color(0xFF141721),
-    surfaceAlt = Color(0xFF1B1F2B), border = Color(0xFF343A4B), accent = Color(0xFF8B5CF6),
-    accent2 = Color(0xFF6D3EF2), text = Color(0xFFF6F7FC), muted = Color(0xFFA3A9BD),
+private val PurpleDark = Palette(
+    bg = Color(0xFF07080D), sidebar = Color(0xFF0B0D13), surface = Color(0xFF12151D),
+    surfaceAlt = Color(0xFF191D27), border = Color(0xFF303646), accent = Color(0xFF8B5CF6),
+    accent2 = Color(0xFF6D3EF2), text = Color(0xFFF7F7FB), muted = Color(0xFFA4A9B8),
 )
-private val Light = Palette(
-    bg = Color(0xFFF4F3F8), sidebar = Color(0xFFFFFFFF), surface = Color(0xFFFFFFFF),
-    surfaceAlt = Color(0xFFF0EDF7), border = Color(0xFFCFC6E2), accent = Color(0xFF7C4DFF),
-    accent2 = Color(0xFF6740DB), text = Color(0xFF181A25), muted = Color(0xFF687085),
+
+private val MonochromeDark = Palette(
+    bg = Color(0xFF050505), sidebar = Color(0xFF0A0A0A), surface = Color(0xFF111111),
+    surfaceAlt = Color(0xFF191919), border = Color(0xFF323232), accent = Color(0xFFF2F2F2),
+    accent2 = Color(0xFFB9B9B9), text = Color(0xFFF5F5F5), muted = Color(0xFFA0A0A0),
 )
 
 private fun glassPalette(base: Palette): Palette = base.copy(
@@ -221,39 +222,59 @@ fun main() {
     application {
         val windowState = rememberWindowState(width = 1420.dp, height = 900.dp)
         val appIcon = painterResource("branding/p-music-icon.png")
+    
+        var theme by remember { mutableStateOf(DesktopPreferences.theme()) }
+        var liquidGlass by remember { mutableStateOf(DesktopPreferences.liquidGlassEnabled()) }
+        var gamerMode by remember { mutableStateOf(DesktopPreferences.gamerModeEnabled()) }
+
+        val basePalette = when (theme) {
+            DesktopTheme.MONOCHROME -> MonochromeDark
+            DesktopTheme.PURPLE -> PurpleDark
+        }
+        val effectiveLiquidGlass = liquidGlass && !gamerMode
+        val p = if (effectiveLiquidGlass) glassPalette(basePalette) else basePalette
+
         Window(
-                onCloseRequest = ::exitApplication,
-                title = "Primo Music",
-                state = windowState,
-                icon = appIcon,
+            onCloseRequest = {
+                // Closing Primo Music always stops audio and releases heavy resources.
+                player.close()
+                DesktopGoogleLogin.shutdown()
+                exitApplication()
+            },
+            title = "Primo Music",
+            state = windowState,
+            icon = appIcon,
         ) {
-            var darkTheme by remember { mutableStateOf(DesktopPreferences.darkThemeEnabled()) }
-            var liquidGlass by remember { mutableStateOf(DesktopPreferences.liquidGlassEnabled()) }
-            val basePalette = if (darkTheme) Dark else Light
-            val p = if (liquidGlass) glassPalette(basePalette) else basePalette
             MaterialTheme(
-                    colorScheme = if (darkTheme) {
-                        darkColorScheme(primary = p.accent, background = p.bg, surface = p.surface)
-                    } else {
-                        lightColorScheme(primary = p.accent, background = p.bg, surface = p.surface)
-                    },
+                colorScheme = darkColorScheme(
+                    primary = p.accent,
+                    background = p.bg,
+                    surface = p.surface,
+                ),
             ) {
                 PrimoMusicApp(
-                        p = p,
-                        darkTheme = darkTheme,
-                        liquidGlass = liquidGlass,
-                        onTheme = {
-                            darkTheme = !darkTheme
-                            DesktopPreferences.setDarkThemeEnabled(darkTheme)
-                        },
-                        onLiquidGlass = { enabled ->
-                            liquidGlass = enabled
-                            DesktopPreferences.setLiquidGlassEnabled(enabled)
-                        },
-                        onFullscreen = { enabled ->
-                            windowState.placement =
-                                if (enabled) WindowPlacement.Fullscreen else WindowPlacement.Floating
-                        },
+                    p = p,
+                    darkTheme = true,
+                    liquidGlass = effectiveLiquidGlass,
+                    player = player,
+                    theme = theme,
+                    gamerMode = gamerMode,
+                    onTheme = { selected ->
+                        theme = selected
+                        DesktopPreferences.setTheme(selected)
+                    },
+                    onGamerMode = { enabled ->
+                        gamerMode = enabled
+                        DesktopPreferences.setGamerModeEnabled(enabled)
+                    },
+                    onLiquidGlass = { enabled ->
+                        liquidGlass = enabled
+                        DesktopPreferences.setLiquidGlassEnabled(enabled)
+                    },
+                    onFullscreen = { enabled ->
+                        windowState.placement =
+                            if (enabled) WindowPlacement.Fullscreen else WindowPlacement.Floating
+                    },
                 )
             }
         }
@@ -265,7 +286,11 @@ private fun PrimoMusicApp(
     p: Palette,
     darkTheme: Boolean,
     liquidGlass: Boolean,
-    onTheme: () -> Unit,
+    player: DesktopAudioPlayer,
+    theme: DesktopTheme,
+    gamerMode: Boolean,
+    onTheme: (DesktopTheme) -> Unit,
+    onGamerMode: (Boolean) -> Unit,
     onLiquidGlass: (Boolean) -> Unit,
     onFullscreen: (Boolean) -> Unit,
 ) {
@@ -564,9 +589,14 @@ private fun PrimoMusicApp(
                     ) {
                         Header(
                             p = p,
-                            dark = darkTheme,
+                            gamerMode = gamerMode,
                             profile = accountProfile,
-                            onTheme = onTheme,
+                            onTheme = {
+                                onTheme(
+                                    if (theme == DesktopTheme.PURPLE) DesktopTheme.MONOCHROME
+                                    else DesktopTheme.PURPLE
+                                )
+                            },
                             onLogin = { loginOpen = true },
                         )
 
@@ -669,8 +699,10 @@ private fun PrimoMusicApp(
                                 Section.SETTINGS ->
                                     SettingsView(
                                         p = p,
-                                        dark = darkTheme,
+                                        theme = theme,
                                         onTheme = onTheme,
+                                        gamerMode = gamerMode,
+                                        onGamerMode = onGamerMode,
                                         liquidGlass = liquidGlass,
                                         onLiquidGlass = onLiquidGlass,
                                         quality = audioQuality,
@@ -904,7 +936,11 @@ private fun Sidebar(
             } else {
                 Icon(Icons.Filled.AccountCircle, null, tint = p.accent, modifier = Modifier.size(18.dp))
             }
-            Spacer(Modifier.width(8.dp)); Text(profile?.name ?: "Conta Google", color = p.text, fontSize = 12.sp, maxLines = 1)
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(profile?.name ?: "Conta Google", color = p.text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(profile?.subtitle ?: "Gerenciar conta", color = p.muted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -939,14 +975,29 @@ private fun Brand(p: Palette) {
 }
 
 @Composable
-private fun Header(p: Palette, dark: Boolean, profile: YouTubeMusicSearchClient.AccountProfile?, onTheme: () -> Unit, onLogin: () -> Unit) {
+private fun Header(
+    p: Palette,
+    gamerMode: Boolean,
+    profile: YouTubeMusicSearchClient.AccountProfile?,
+    onTheme: () -> Unit,
+    onLogin: () -> Unit,
+) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Column {
             Text("Primo Music", color = p.text, fontSize = 27.sp, fontWeight = FontWeight.Black)
             Text("Sua música no Windows", color = p.muted, fontSize = 12.sp)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = onTheme) { Icon(if (dark) Icons.Filled.LightMode else Icons.Filled.DarkMode, "Alternar tema", tint = p.text) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (gamerMode) {
+                Surface(
+                    color = p.surfaceAlt,
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, p.border.copy(alpha = .7f)),
+                ) {
+                    Text("🎮  Modo Gamer", color = p.text, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
+                }
+            }
+            IconButton(onClick = onTheme) { Icon(Icons.Filled.DarkMode, "Alternar tema", tint = p.text) }
             IconButton(onClick = onLogin) {
                 if (!profile?.thumbnailUrl.isNullOrBlank()) AsyncImage(model = profile?.thumbnailUrl, contentDescription = "Conta", modifier = Modifier.size(28.dp).clip(CircleShape), contentScale = ContentScale.Crop)
                 else Icon(Icons.Filled.AccountCircle, "Conta", tint = p.text)
@@ -1909,43 +1960,127 @@ private fun EmptyView(p: Palette, icon: ImageVector, title: String, message: Str
 @Composable
 private fun SettingsView(
     p: Palette,
-    dark: Boolean,
-    onTheme: () -> Unit,
+    theme: DesktopTheme,
+    onTheme: (DesktopTheme) -> Unit,
+    gamerMode: Boolean,
+    onGamerMode: (Boolean) -> Unit,
     liquidGlass: Boolean,
     onLiquidGlass: (Boolean) -> Unit,
     quality: AudioQuality,
     onQuality: (AudioQuality) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxSize(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = p.surface), border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f))) {
-        Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Configurações", color = p.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            OutlinedButton(onClick = onTheme, border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)), shape = RoundedCornerShape(14.dp)) {
-                Icon(if (dark) Icons.Filled.LightMode else Icons.Filled.DarkMode, null, tint = p.accent); Spacer(Modifier.width(8.dp)); Text(if (dark) "Usar tema claro" else "Usar tema escuro", color = p.text)
+    Card(
+        modifier = Modifier.fillMaxSize(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = p.surface),
+        border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
+    ) {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item {
+                Text("Configurações", color = p.text, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Text("Visual, desempenho e áudio", color = p.muted, fontSize = 12.sp)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surfaceAlt).padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Liquid Glass", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text("Efeito visual opcional. Desligado por padrão.", color = p.muted, fontSize = 11.sp)
+
+            item {
+                Text("Aparência", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf(
+                        DesktopTheme.MONOCHROME to "Preto & Branco",
+                        DesktopTheme.PURPLE to "Preto & Roxo",
+                    ).forEach { (option, label) ->
+                        OutlinedButton(
+                            onClick = { onTheme(option) },
+                            border = BorderStroke(1.dp, if (theme == option) p.accent else p.border),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Text(label, color = if (theme == option) p.accent else p.text, fontSize = 12.sp)
+                        }
+                    }
                 }
-                Switch(checked = liquidGlass, onCheckedChange = onLiquidGlass)
             }
-            Text("O Liquid Glass altera somente a aparência. Player, conta e biblioteca usam a mesma lógica com o efeito ligado ou desligado.", color = p.muted, fontSize = 12.sp)
-            Text("Qualidade de áudio", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AudioQuality.entries.forEach { option ->
-                    OutlinedButton(
-                        onClick = { onQuality(option) },
-                        border = BorderStroke(1.dp, if (quality == option) p.accent else p.border),
-                        shape = RoundedCornerShape(12.dp),
-                    ) { Text(option.label, color = if (quality == option) p.accent else p.text, fontSize = 12.sp) }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surfaceAlt).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("🎮 Modo Gamer", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Prioriza áudio e reduz efeitos visuais enquanto você joga.", color = p.muted, fontSize = 11.sp)
+                    }
+                    Switch(checked = gamerMode, onCheckedChange = onGamerMode)
                 }
             }
-            Text("A qualidade escolhe o stream direto mais adequado retornado pelo provedor. Nenhum áudio é baixado ou salvo em arquivo temporário.", color = p.muted, fontSize = 12.sp)
-            Text("Streaming: Innertube direto + desbloqueio do player JavaScript → NewPipe local como fallback → mpv. Nenhum servidor Piped/Invidious participa do caminho normal.", color = p.muted, fontSize = 12.sp)
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surfaceAlt).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Liquid Glass", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            if (gamerMode) "Desativado temporariamente pelo Modo Gamer."
+                            else "Refração e transparência premium. Opcional.",
+                            color = p.muted,
+                            fontSize = 11.sp,
+                        )
+                    }
+                    Switch(
+                        checked = liquidGlass && !gamerMode,
+                        enabled = !gamerMode,
+                        onCheckedChange = onLiquidGlass,
+                    )
+                }
+            }
+
+            item {
+                Text("Áudio", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Qualidade do streaming", color = p.muted, fontSize = 11.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AudioQuality.entries.forEach { option ->
+                        OutlinedButton(
+                            onClick = { onQuality(option) },
+                            border = BorderStroke(1.dp, if (quality == option) p.accent else p.border),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text(option.label, color = if (quality == option) p.accent else p.text, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = p.surfaceAlt),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, p.border.copy(alpha = .45f)),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Encerramento seguro", color = p.text, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Fechar o Primo Music sempre encerra a música, o mpv e os recursos de login. Este comportamento é obrigatório e não pode ser desativado.",
+                            color = p.muted,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    "Streaming direto: Innertube → NewPipe local como fallback → mpv. Nenhum áudio é salvo em arquivo temporário.",
+                    color = p.muted,
+                    fontSize = 12.sp,
+                )
+            }
         }
     }
 }
