@@ -234,6 +234,10 @@ fun main() {
         val effectiveLiquidGlass = liquidGlass && !gamerMode
         val p = if (effectiveLiquidGlass) glassPalette(basePalette) else basePalette
 
+        LaunchedEffect(gamerMode) {
+            player.setGamerMode(gamerMode)
+        }
+
         Window(
             onCloseRequest = {
                 // Closing Primo Music always stops audio and releases heavy resources.
