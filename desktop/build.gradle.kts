@@ -126,7 +126,7 @@ val prepareBundledMpv by tasks.registering {
                 connection.readTimeout = 120_000
                 connection.setRequestProperty(
                     "User-Agent",
-                    "PrimoMusic-Build/3.10.9",
+                    "PrimoMusic-Build/3.11.0",
                 )
 
                 try {
@@ -222,7 +222,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Msi)
             packageName = "PrimoMusic"
-            packageVersion = "3.10.9"
+            packageVersion = "3.11.0"
             description = "Primo Music desktop player for Windows"
             vendor = "Primo Music"
             licenseFile.set(rootProject.file("LICENSE"))
@@ -341,7 +341,7 @@ val verifyPortableImage by tasks.registering {
 
         File(image, "LEIA-ME.txt").writeText(
             """
-            Primo Music 3.10.9 - Portable
+            Primo Music 3.11.0 - Portable
 
             1. Mantenha toda esta pasta junta.
             2. Abra PrimoMusic.exe.
@@ -363,10 +363,10 @@ val portableZip by tasks.registering(Zip::class) {
     dependsOn(verifyPortableImage)
 
     from(portableAppImage) {
-        into("PrimoMusic-3.10.9-Portable")
+        into("PrimoMusic-3.11.0-Portable")
     }
 
-    archiveFileName.set("PrimoMusic-3.10.9-Portable.zip")
+    archiveFileName.set("PrimoMusic-3.11.0-Portable.zip")
     destinationDirectory.set(rootProject.layout.projectDirectory.dir("release"))
     isPreserveFileTimestamps = false
     isReproducibleFileOrder = true
