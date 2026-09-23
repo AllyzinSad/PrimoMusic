@@ -41,6 +41,8 @@ object DesktopGoogleLogin {
 
     @Volatile private var cefApp: CefApp? = null
     @Volatile private var client: CefClient? = null
+    @Volatile private var activeBrowser: CefBrowser? = null
+    @Volatile private var activeFrame: JFrame? = null
 
     fun restore(): Boolean {
         val session = loadSession() ?: return false
@@ -81,17 +83,17 @@ object DesktopGoogleLogin {
                             saveSession(session)
                             YouTubeMusicSearchClient.setAuthSession(YouTubeMusicSearchClient.AuthSession(cookie))
                             onConnected(session)
-                            SwingUtilities.invokeLater {
-                                SwingUtilities.getWindowAncestor(browser.uiComponent)?.dispose()
-                            }
+                            releaseLoginResources()
                         }
                     }
                 })
 
                 val browser = cefClient.createBrowser(LOGIN_URL, false, false)
+                activeBrowser = browser
 
                 SwingUtilities.invokeLater {
                     val frame = JFrame("Entrar com Google • Primo Music")
+                    activeFrame = frame
                     frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
                     frame.minimumSize = Dimension(900, 680)
                     frame.setSize(1060, 780)
@@ -105,6 +107,49 @@ object DesktopGoogleLogin {
                 }
             }.onFailure { error -> onError(error.message ?: "Não foi possível abrir o login do Google.") }
         }, "PrimoMusic-GoogleLogin").apply { isDaemon = true }.start()
+    }
+
+
+    /**
+     * Releases Chromium/JCEF as soon as authentication is finished or when
+     * Primo Music exits. JCEF is intentionally not a permanent background
+     * service: keeping Chromium alive after sign-in wastes RAM while gaming.
+     */
+    fun shutdown() {
+        releaseLoginResources()
+        YouTubeMusicSearchClient.currentAuthSession()
+    }
+
+    private fun releaseLoginResources() {
+        val browser = activeBrowser
+        val frame = activeFrame
+        val cefClient = client
+        val app = cefApp
+
+        activeBrowser = null
+        activeFrame = null
+        client = null
+        cefApp = null
+
+        SwingUtilities.invokeLater {
+            runCatching { frame?.dispose() }
+        }
+
+        runCatching {
+            browser?.javaClass?.methods
+                ?.firstOrNull { it.name == "close" && it.parameterCount == 1 }
+                ?.invoke(browser, true)
+        }
+        runCatching {
+            cefClient?.javaClass?.methods
+                ?.firstOrNull { it.name == "dispose" && it.parameterCount == 0 }
+                ?.invoke(cefClient)
+        }
+        runCatching {
+            app?.javaClass?.methods
+                ?.firstOrNull { it.name == "dispose" && it.parameterCount == 0 }
+                ?.invoke(app)
+        }
     }
 
     private fun ensureCef(): CefApp {
