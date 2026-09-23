@@ -241,12 +241,12 @@ fun main() {
 
         Window(
             onCloseRequest = {
-                // Closing Primo Music always stops audio and releases heavy resources.
+                // Closing Koda Music always stops audio and releases heavy resources.
                 player.close()
                 DesktopGoogleLogin.shutdown()
                 exitApplication()
             },
-            title = "Primo Music",
+            title = "Koda Music",
             state = windowState,
             icon = appIcon,
         ) {
@@ -969,12 +969,12 @@ private fun Brand(p: Palette) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
         Image(
             painter = painterResource("branding/p-music-icon.png"),
-            contentDescription = "P Music",
+            contentDescription = "Koda Music",
             modifier = Modifier.size(46.dp),
         )
         Column {
             Text("P MUSIC", color = p.text, fontWeight = FontWeight.Black, fontSize = 17.sp, letterSpacing = 1.4.sp)
-            Text("Primo Music", color = p.muted, fontSize = 10.sp)
+            Text("Koda Music", color = p.muted, fontSize = 10.sp)
         }
     }
 }
@@ -989,7 +989,7 @@ private fun Header(
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Column {
-            Text("Primo Music", color = p.text, fontSize = 27.sp, fontWeight = FontWeight.Black)
+            Text("Koda Music", color = p.text, fontSize = 27.sp, fontWeight = FontWeight.Black)
             Text("Sua música no Windows", color = p.muted, fontSize = 12.sp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2315,7 +2315,7 @@ private fun SettingsView(
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("Encerramento seguro", color = p.text, fontWeight = FontWeight.Bold)
                         Text(
-                            "Fechar o Primo Music sempre encerra a música, o mpv e os recursos de login. Este comportamento é obrigatório e não pode ser desativado.",
+                            "Fechar o Koda Music sempre encerra a música, o mpv e os recursos de login. Este comportamento é obrigatório e não pode ser desativado.",
                             color = p.muted,
                             fontSize = 12.sp,
                         )
@@ -2370,18 +2370,18 @@ private fun AccountDialog(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { IconButton(onClick = onClose) { Icon(Icons.Filled.Close, null, tint = p.muted) } }
                 Image(
                     painter = painterResource("branding/p-music-logo.png"),
-                    contentDescription = "P Music",
+                    contentDescription = "Koda Music",
                     modifier = Modifier.width(280.dp).height(96.dp),
                     contentScale = ContentScale.Fit,
                 )
                 if (connected && !profile?.thumbnailUrl.isNullOrBlank()) {
                     AsyncImage(model = profile?.thumbnailUrl, contentDescription = "Foto da conta", modifier = Modifier.size(72.dp).clip(CircleShape), contentScale = ContentScale.Crop)
                 }
-                Text(if (connected) (profile?.name ?: "Google conectado") else "Entrar no Primo Music", color = p.text, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Text(if (connected) (profile?.name ?: "Google conectado") else "Entrar no Koda Music", color = p.text, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 if (connected && !profile?.subtitle.isNullOrBlank()) Text(profile?.subtitle.orEmpty(), color = p.muted, fontSize = 12.sp)
                 Text(
-                    if (connected) "Sua sessão do Google está conectada ao Primo Music e pode autenticar as chamadas do YouTube Music."
-                    else "O login abre o Google dentro do Primo Music. Sua senha e verificação em duas etapas são digitadas diretamente na página oficial do Google; o app captura apenas a sessão concluída do YouTube Music.",
+                    if (connected) "Sua sessão do Google está conectada ao Koda Music e pode autenticar as chamadas do YouTube Music."
+                    else "O login abre o Google dentro do Koda Music. Sua senha e verificação em duas etapas são digitadas diretamente na página oficial do Google; o app captura apenas a sessão concluída do YouTube Music.",
                     color = p.muted, fontSize = 12.sp, lineHeight = 18.sp,
                 )
                 error?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 12.sp) }
@@ -2398,7 +2398,7 @@ private fun AccountDialog(
                         shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
                     ) { Text("Sair da conta", color = p.text) }
                 }
-                Text("Primo Music não contém anúncios próprios.", color = p.muted, fontSize = 11.sp)
+                Text("Koda Music não contém anúncios próprios.", color = p.muted, fontSize = 11.sp)
             }
         }
     }
