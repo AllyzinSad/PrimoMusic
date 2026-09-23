@@ -1,0 +1,35 @@
+name: Desktop CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'desktop/**'
+      - 'core/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+
+permissions:
+  contents: read
+
+jobs:
+  compile-desktop:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Compile Primo Music Desktop
+        shell: pwsh
+        run: .\gradlew.bat :desktop:compileKotlin --stacktrace
