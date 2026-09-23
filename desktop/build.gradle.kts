@@ -89,7 +89,7 @@ fun sha256(file: File): String {
 
 val prepareBundledMpv by tasks.registering {
     group = "distribution"
-    description = "Downloads and verifies mpv for bundling inside Primo Music."
+    description = "Downloads and verifies mpv for bundling inside Koda Music."
 
     inputs.property("mpvVersion", mpvVersion)
     inputs.property("mpvArchiveSha256", mpvArchiveSha256)
@@ -114,7 +114,7 @@ val prepareBundledMpv by tasks.registering {
                 val temporary = File(cacheDir, "$mpvArchiveName.part")
                 temporary.delete()
 
-                println("Primo Music: preparando mpv $mpvVersion para o pacote Windows...")
+                println("Koda Music: preparando mpv $mpvVersion para o pacote Windows...")
 
                 val connection =
                     URI(mpvDownloadUrl)
@@ -126,7 +126,7 @@ val prepareBundledMpv by tasks.registering {
                 connection.readTimeout = 120_000
                 connection.setRequestProperty(
                     "User-Agent",
-                    "PrimoMusic-Build/3.11.0",
+                    "KodaMusic-Build/3.11.0",
                 )
 
                 try {
@@ -184,14 +184,14 @@ val prepareBundledMpv by tasks.registering {
         notice.parentFile.mkdirs()
         notice.writeText(
             """
-            Primo Music bundles mpv $mpvVersion for Windows audio playback.
+            Koda Music bundles mpv $mpvVersion for Windows audio playback.
             Project: https://mpv.io/
             Source: https://github.com/mpv-player/mpv
             Release archive: $mpvArchiveName
             SHA-256: $mpvArchiveSha256
 
             mpv is free and open-source software. See the mpv project and the
-            Primo Music THIRD_PARTY-NOTICES-PRIMO.md file for licensing details.
+            Koda Music THIRD_PARTY-NOTICES-PRIMO.md file for licensing details.
             """.trimIndent() + "\n"
         )
     }
@@ -221,10 +221,10 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Msi)
-            packageName = "PrimoMusic"
+            packageName = "KodaMusic"
             packageVersion = "3.11.0"
-            description = "Primo Music desktop player for Windows"
-            vendor = "Primo Music"
+            description = "Koda Music desktop player for Windows"
+            vendor = "Koda Music"
             licenseFile.set(rootProject.file("LICENSE"))
 
             // Keep the portable runtime self-contained. The application uses
@@ -238,7 +238,7 @@ compose.desktop {
 
             windows {
                 iconFile.set(project.file("p-music.ico"))
-                menuGroup = "Primo Music"
+                menuGroup = "Koda Music"
                 perUserInstall = true
                 dirChooser = true
 
@@ -254,7 +254,7 @@ compose.desktop {
 tasks.matching { it.name.startsWith("prepare") && it.name.endsWith("AppResources") }
     .configureEach { dependsOn(prepareBundledMpv) }
 
-val portableAppImage = layout.buildDirectory.dir("compose/binaries/main/app/PrimoMusic")
+val portableAppImage = layout.buildDirectory.dir("compose/binaries/main/app/KodaMusic")
 
 /** Returns true when one of [jars] physically contains [entry]. */
 fun classExistsInJars(jars: List<File>, entry: String): Boolean =
@@ -271,20 +271,20 @@ fun classExistsInJars(jars: List<File>, entry: String): Boolean =
  */
 val verifyPortableImage by tasks.registering {
     group = "verification"
-    description = "Verifies the self-contained Primo Music app-image before zipping it."
+    description = "Verifies the self-contained Koda Music app-image before zipping it."
     dependsOn("createDistributable")
 
     doLast {
         val image = portableAppImage.get().asFile
         val appDir = File(image, "app")
-        val cfg = File(appDir, "PrimoMusic.cfg")
-        val exe = File(image, "PrimoMusic.exe")
+        val cfg = File(appDir, "KodaMusic.cfg")
+        val exe = File(image, "KodaMusic.exe")
         val runtimeModules = File(image, "runtime/lib/modules")
         val jli = File(image, "runtime/bin/jli.dll")
         val jvm = File(image, "runtime/bin/server/jvm.dll")
 
-        check(exe.isFile) { "PrimoMusic.exe nao foi gerado: ${exe.absolutePath}" }
-        check(cfg.isFile) { "PrimoMusic.cfg nao foi gerado: ${cfg.absolutePath}" }
+        check(exe.isFile) { "KodaMusic.exe nao foi gerado: ${exe.absolutePath}" }
+        check(cfg.isFile) { "KodaMusic.cfg nao foi gerado: ${cfg.absolutePath}" }
         check(runtimeModules.isFile) { "Runtime Java incompleto: ${runtimeModules.absolutePath}" }
 
         // These DLLs are Windows-specific. Do not fail Gradle configuration on
@@ -332,19 +332,19 @@ val verifyPortableImage by tasks.registering {
 
         val cfgText = cfg.readText(Charsets.UTF_8)
         check(cfgText.contains("app.mainclass=com.primomusic.desktop.MainKt")) {
-            "PrimoMusic.cfg nao aponta para com.primomusic.desktop.MainKt."
+            "KodaMusic.cfg nao aponta para com.primomusic.desktop.MainKt."
         }
         val classpathCount = cfgText.lineSequence().count { it.startsWith("app.classpath=") }
         check(classpathCount >= 5) {
-            "PrimoMusic.cfg possui apenas $classpathCount entradas de classpath."
+            "KodaMusic.cfg possui apenas $classpathCount entradas de classpath."
         }
 
         File(image, "LEIA-ME.txt").writeText(
             """
-            Primo Music 3.11.0 - Portable
+            Koda Music 3.11.0 - Portable
 
             1. Mantenha toda esta pasta junta.
-            2. Abra PrimoMusic.exe.
+            2. Abra KodaMusic.exe.
             3. Java e mpv ja fazem parte do pacote.
 
             O pacote foi validado antes da criacao do ZIP: MainKt, Kotlin,
@@ -359,14 +359,14 @@ val verifyPortableImage by tasks.registering {
 
 val portableZip by tasks.registering(Zip::class) {
     group = "distribution"
-    description = "Builds the verified Primo Music Windows portable ZIP."
+    description = "Builds the verified Koda Music Windows portable ZIP."
     dependsOn(verifyPortableImage)
 
     from(portableAppImage) {
-        into("PrimoMusic-3.11.0-Portable")
+        into("KodaMusic-3.11.0-Portable")
     }
 
-    archiveFileName.set("PrimoMusic-3.11.0-Portable.zip")
+    archiveFileName.set("KodaMusic-3.11.0-Portable.zip")
     destinationDirectory.set(rootProject.layout.projectDirectory.dir("release"))
     isPreserveFileTimestamps = false
     isReproducibleFileOrder = true
