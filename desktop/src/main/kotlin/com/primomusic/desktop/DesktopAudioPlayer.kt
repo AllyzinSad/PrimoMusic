@@ -11,6 +11,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
@@ -488,12 +489,24 @@ class DesktopAudioPlayer(
     fun close() {
         generation.incrementAndGet()
 
+        activePlayJob?.cancel()
+        activePlayJob = null
+
         stopProcess(
             expected = true,
         )
 
+        currentVideoId = null
+        currentUrl = null
+        currentStream = null
+        candidates = emptyList()
+        failedUrls = emptySet()
+        updater = null
+        onEnd = null
+
         directResolver.close()
         newPipeResolver.close()
+        scope.cancel()
     }
 
     /**
