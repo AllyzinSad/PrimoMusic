@@ -1512,35 +1512,52 @@ private fun FullPlayerScreen(
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = p.bg) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            p.accent.copy(alpha = 0.18f),
-                            p.surface.copy(alpha = 0.55f),
-                            p.bg,
-                            p.bg,
-                        ),
-                        radius = 1400f,
-                    ),
-                ),
-        ) {
-            val highResArtwork = highResolutionThumbnailUrl(track.thumbnailUrl)
-            if (!highResArtwork.isNullOrBlank()) {
+    val artwork = highResolutionThumbnailUrl(track.thumbnailUrl)
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFF050506),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            if (!artwork.isNullOrBlank()) {
                 AsyncImage(
-                    model = highResArtwork,
+                    model = artwork,
                     contentDescription = null,
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(760.dp)
+                        .fillMaxSize()
                         .blur(120.dp),
                     contentScale = ContentScale.Crop,
-                    alpha = 0.10f,
+                    alpha = 0.26f,
                 )
             }
+
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.42f),
+                                Color.Black.copy(alpha = 0.66f),
+                                Color.Black.copy(alpha = 0.92f),
+                            ),
+                        ),
+                    ),
+            )
+
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                p.accent.copy(alpha = 0.13f),
+                                Color.Transparent,
+                            ),
+                            radius = 1050f,
+                        ),
+                    ),
+            )
 
             Column(
                 Modifier
@@ -1553,19 +1570,70 @@ private fun FullPlayerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Brand(p)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Brand(
+                            p.copy(
+                                text = Color.White,
+                                muted = Color.White.copy(alpha = .62f),
+                            ),
+                        )
+                        Spacer(Modifier.width(14.dp))
+                        Surface(
+                            color = Color.White.copy(alpha = .06f),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
+                        ) {
+                            Text(
+                                "TOCANDO AGORA",
+                                color = Color.White.copy(alpha = .78f),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            )
+                        }
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         OutlinedButton(
                             onClick = onLyricsToggle,
-                            border = BorderStroke(1.dp, if (lyricsVisible) p.accent else p.border),
+                            border = BorderStroke(
+                                1.dp,
+                                if (lyricsVisible) p.accent else Color.White.copy(alpha = .18f),
+                            ),
                             shape = RoundedCornerShape(14.dp),
                         ) {
-                            Icon(Icons.Filled.Article, null, tint = if (lyricsVisible) p.accent else p.text, modifier = Modifier.size(18.dp))
+                            Icon(
+                                Icons.Filled.Article,
+                                null,
+                                tint = if (lyricsVisible) p.accent else Color.White,
+                                modifier = Modifier.size(18.dp),
+                            )
                             Spacer(Modifier.width(8.dp))
-                            Text(if (lyricsVisible) "Ocultar letras" else "Letras", color = p.text)
+                            Text(
+                                if (lyricsVisible) "Ocultar letras" else "Letras",
+                                color = Color.White,
+                            )
                         }
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Filled.FullscreenExit, "Sair da tela cheia", tint = p.text)
+
+                        Surface(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onClose),
+                            color = Color.White.copy(alpha = .08f),
+                            shape = CircleShape,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Filled.FullscreenExit,
+                                    "Sair da tela cheia",
+                                    tint = Color.White,
+                                )
+                            }
                         }
                     }
                 }
@@ -1574,146 +1642,322 @@ private fun FullPlayerScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(horizontal = 50.dp),
-                    horizontalArrangement = Arrangement.spacedBy(42.dp),
+                        .padding(horizontal = 34.dp),
+                    horizontalArrangement = Arrangement.spacedBy(44.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Card(
-                        modifier = Modifier.size(if (lyricsVisible) 330.dp else 390.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = p.surface),
-                        border = BorderStroke(1.dp, p.border.copy(alpha = 0.78f)),
+                    Column(
+                        modifier = Modifier.width(410.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
-                        Cover(track.thumbnailUrl, track.title, p, if (lyricsVisible) 330.dp else 390.dp)
+                        Card(
+                            modifier = Modifier.size(390.dp),
+                            shape = RoundedCornerShape(32.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF111116)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
+                        ) {
+                            Cover(track.thumbnailUrl, track.title, p, 390.dp)
+                        }
+
+                        Spacer(Modifier.height(22.dp))
+
+                        Text(
+                            track.title,
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        Text(
+                            track.artist,
+                            color = Color.White.copy(alpha = .62f),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
 
-                    if (lyricsVisible) {
-                        Card(
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            shape = RoundedCornerShape(26.dp),
-                            colors = CardDefaults.cardColors(containerColor = p.surface.copy(alpha = 0.92f)),
-                            border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
-                        ) {
-                            Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Column {
-                                        Text("Letras", color = p.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                                        Text("Acompanhamento opcional da faixa", color = p.muted, fontSize = 11.sp)
-                                    }
-                                    lyrics?.source?.let { Text(it, color = p.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
-                                }
-                                when {
-                                    lyricsLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = p.accent) }
-                                    lyricsError != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(lyricsError ?: "", color = p.muted, fontSize = 14.sp) }
-                                    lyrics != null -> LyricsBody(p, lyrics!!, state.positionMillis)
-                                    else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Abra Letras para consultar a letra desta música.", color = p.muted) }
-                                }
-                            }
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.weight(1f).padding(end = 40.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            Text("TOCANDO AGORA", color = p.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                track.title,
-                                color = p.text,
-                                fontSize = 38.sp,
-                                fontWeight = FontWeight.Black,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                track.artist,
-                                color = p.muted,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            state.streamInfo?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, color = p.muted.copy(alpha = 0.80f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            PlayerTimeline(
-                                p = p,
-                                positionMillis = state.positionMillis,
-                                durationMillis = durationMillis,
-                                compact = false,
-                                onSeek = onSeek,
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                IconButton(onClick = onFavorite) {
-                                    Icon(if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, "Favorito", tint = if (favorite) p.accent else p.muted)
-                                }
-                                IconButton(onClick = onShuffle) { Icon(Icons.Filled.Shuffle, "Aleatório", tint = if (shuffle) p.accent else p.muted) }
-                                IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, "Anterior", tint = p.text, modifier = Modifier.size(34.dp)) }
-                                Box(
-                                    Modifier.size(68.dp).clip(CircleShape).background(p.accent).clickable(onClick = onToggle),
-                                    contentAlignment = Alignment.Center,
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(vertical = 24.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF0D0E13).copy(alpha = .84f),
+                        ),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
+                    ) {
+                        if (lyricsVisible) {
+                            Column(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(26.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    if (state.state == DesktopAudioPlayer.State.RESOLVING) {
-                                        CircularProgressIndicator(Modifier.size(26.dp), color = Color.White, strokeWidth = 2.dp)
-                                    } else {
-                                        Icon(if (state.state == DesktopAudioPlayer.State.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(36.dp))
+                                    Column {
+                                        Text(
+                                            "Letras",
+                                            color = Color.White,
+                                            fontSize = 25.sp,
+                                            fontWeight = FontWeight.Black,
+                                        )
+                                        Text(
+                                            "Acompanhe a faixa sem sair do player",
+                                            color = Color.White.copy(alpha = .52f),
+                                            fontSize = 11.sp,
+                                        )
+                                    }
+                                    lyrics?.source?.let {
+                                        Text(
+                                            it,
+                                            color = p.accent,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        )
                                     }
                                 }
-                                IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, "Próxima", tint = p.text, modifier = Modifier.size(34.dp)) }
-                                IconButton(onClick = onRepeat) {
-                                    Icon(if (repeat) Icons.Filled.RepeatOne else Icons.Filled.Repeat, "Repetir", tint = if (repeat) p.accent else p.muted)
+
+                                when {
+                                    lyricsLoading -> {
+                                        Box(
+                                            Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            CircularProgressIndicator(color = p.accent)
+                                        }
+                                    }
+
+                                    lyricsError != null -> {
+                                        Box(
+                                            Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text(
+                                                lyricsError ?: "",
+                                                color = Color.White.copy(alpha = .58f),
+                                                fontSize = 14.sp,
+                                            )
+                                        }
+                                    }
+
+                                    lyrics != null -> {
+                                        LyricsBody(
+                                            p.copy(
+                                                text = Color.White,
+                                                muted = Color.White.copy(alpha = .55f),
+                                            ),
+                                            lyrics!!,
+                                            state.positionMillis,
+                                        )
+                                    }
+
+                                    else -> {
+                                        Box(
+                                            Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text(
+                                                "As letras aparecerão aqui.",
+                                                color = Color.White.copy(alpha = .52f),
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                IconButton(onClick = onMute) { Icon(if (state.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Volume", tint = p.muted) }
-                                Slider(value = state.volume.toFloat(), onValueChange = onVolume, modifier = Modifier.width(220.dp))
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(34.dp),
+                                verticalArrangement = Arrangement.Center,
+                            ) {
                                 Text(
-                                    "${(state.volume * 100).roundToInt()}%",
-                                    color = p.text.copy(alpha = 0.84f),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    "PRIMO MUSIC",
+                                    color = p.accent,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
                                 )
+
+                                Spacer(Modifier.height(14.dp))
+
+                                Text(
+                                    track.title,
+                                    color = Color.White,
+                                    fontSize = 42.sp,
+                                    fontWeight = FontWeight.Black,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+
+                                Spacer(Modifier.height(10.dp))
+
+                                Text(
+                                    track.artist,
+                                    color = Color.White.copy(alpha = .62f),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+
+                                state.streamInfo
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let {
+                                        Spacer(Modifier.height(18.dp))
+                                        Surface(
+                                            color = Color.White.copy(alpha = .05f),
+                                            shape = RoundedCornerShape(50),
+                                        ) {
+                                            Text(
+                                                it,
+                                                color = Color.White.copy(alpha = .56f),
+                                                fontSize = 10.sp,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                            )
+                                        }
+                                    }
                             }
                         }
                     }
                 }
 
-                if (lyricsVisible) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = p.surface.copy(alpha = 0.92f)),
-                        border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF0C0D12).copy(alpha = .94f),
+                    ),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 22.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            PlayerTimeline(
-                                p = p,
-                                positionMillis = state.positionMillis,
-                                durationMillis = durationMillis,
-                                compact = false,
-                                onSeek = onSeek,
-                            )
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = onFavorite) { Icon(if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, "Favorito", tint = if (favorite) p.accent else p.muted) }
-                                    IconButton(onClick = onShuffle) { Icon(Icons.Filled.Shuffle, "Aleatório", tint = if (shuffle) p.accent else p.muted) }
+                        PlayerTimeline(
+                            p = p.copy(
+                                text = Color.White,
+                                muted = Color.White.copy(alpha = .55f),
+                            ),
+                            positionMillis = state.positionMillis,
+                            durationMillis = durationMillis,
+                            compact = false,
+                            onSeek = onSeek,
+                        )
+
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = onFavorite) {
+                                    Icon(
+                                        if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                        "Favorito",
+                                        tint = if (favorite) p.accent else Color.White.copy(alpha = .56f),
+                                    )
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, "Anterior", tint = p.text, modifier = Modifier.size(30.dp)) }
-                                    Box(Modifier.size(58.dp).clip(CircleShape).background(p.accent).clickable(onClick = onToggle), contentAlignment = Alignment.Center) {
-                                        if (state.state == DesktopAudioPlayer.State.RESOLVING) {
-                                            CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
-                                        } else {
-                                            Icon(if (state.state == DesktopAudioPlayer.State.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(32.dp))
-                                        }
+                                IconButton(onClick = onShuffle) {
+                                    Icon(
+                                        Icons.Filled.Shuffle,
+                                        "Aleatório",
+                                        tint = if (shuffle) p.accent else Color.White.copy(alpha = .56f),
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                IconButton(onClick = onPrevious) {
+                                    Icon(
+                                        Icons.Filled.SkipPrevious,
+                                        "Anterior",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp),
+                                    )
+                                }
+
+                                Box(
+                                    Modifier
+                                        .size(62.dp)
+                                        .clip(CircleShape)
+                                        .background(p.accent)
+                                        .clickable(onClick = onToggle),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (state.state == DesktopAudioPlayer.State.RESOLVING) {
+                                        CircularProgressIndicator(
+                                            Modifier.size(25.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp,
+                                        )
+                                    } else {
+                                        Icon(
+                                            if (state.state == DesktopAudioPlayer.State.PLAYING) {
+                                                Icons.Filled.Pause
+                                            } else {
+                                                Icons.Filled.PlayArrow
+                                            },
+                                            "Play/Pause",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(34.dp),
+                                        )
                                     }
-                                    IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, "Próxima", tint = p.text, modifier = Modifier.size(30.dp)) }
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = onRepeat) { Icon(if (repeat) Icons.Filled.RepeatOne else Icons.Filled.Repeat, "Repetir", tint = if (repeat) p.accent else p.muted) }
-                                    IconButton(onClick = onMute) { Icon(if (state.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Volume", tint = p.muted) }
-                                    Slider(value = state.volume.toFloat(), onValueChange = onVolume, modifier = Modifier.width(150.dp))
+
+                                IconButton(onClick = onNext) {
+                                    Icon(
+                                        Icons.Filled.SkipNext,
+                                        "Próxima",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp),
+                                    )
                                 }
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = onRepeat) {
+                                    Icon(
+                                        if (repeat) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                                        "Repetir",
+                                        tint = if (repeat) p.accent else Color.White.copy(alpha = .56f),
+                                    )
+                                }
+                                IconButton(onClick = onMute) {
+                                    Icon(
+                                        if (state.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
+                                        "Volume",
+                                        tint = Color.White.copy(alpha = .62f),
+                                    )
+                                }
+                                Slider(
+                                    value = state.volume.toFloat(),
+                                    onValueChange = onVolume,
+                                    modifier = Modifier.width(160.dp),
+                                )
+                                Text(
+                                    "${(state.volume * 100).roundToInt()}%",
+                                    color = Color.White.copy(alpha = .70f),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.width(38.dp),
+                                )
                             }
                         }
                     }
