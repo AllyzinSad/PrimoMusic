@@ -26,7 +26,7 @@ import javax.swing.SwingUtilities
 /**
  * Real Google sign-in hosted inside Chromium (JCEF), mirroring BitChord's
  * Android WebView flow. Passwords and 2FA are entered only into Google's page;
- * Primo Music only reads the completed YouTube Music session cookies.
+ * Koda Music only reads the completed YouTube Music session cookies.
  */
 object DesktopGoogleLogin {
     data class Session(val cookie: String)
@@ -92,27 +92,27 @@ object DesktopGoogleLogin {
                 activeBrowser = browser
 
                 SwingUtilities.invokeLater {
-                    val frame = JFrame("Entrar com Google • Primo Music")
+                    val frame = JFrame("Entrar com Google • Koda Music")
                     activeFrame = frame
                     frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
                     frame.minimumSize = Dimension(900, 680)
                     frame.setSize(1060, 780)
                     frame.setLocationRelativeTo(null)
                     val root = JPanel(BorderLayout())
-                    root.add(JLabel("Faça login diretamente no Google. Primo Music não vê sua senha.", SwingConstants.CENTER), BorderLayout.NORTH)
+                    root.add(JLabel("Faça login diretamente no Google. Koda Music não vê sua senha.", SwingConstants.CENTER), BorderLayout.NORTH)
                     root.add(browser.uiComponent, BorderLayout.CENTER)
                     frame.contentPane = root
                     frame.isVisible = true
                     browser.createImmediately()
                 }
             }.onFailure { error -> onError(error.message ?: "Não foi possível abrir o login do Google.") }
-        }, "PrimoMusic-GoogleLogin").apply { isDaemon = true }.start()
+        }, "KodaMusic-GoogleLogin").apply { isDaemon = true }.start()
     }
 
 
     /**
      * Releases Chromium/JCEF as soon as authentication is finished or when
-     * Primo Music exits. JCEF is intentionally not a permanent background
+     * Koda Music exits. JCEF is intentionally not a permanent background
      * service: keeping Chromium alive after sign-in wastes RAM while gaming.
      */
     fun shutdown() {
@@ -192,7 +192,7 @@ object DesktopGoogleLogin {
     private fun saveSession(session: Session) {
         val props = Properties()
         props["cookie"] = Base64.getEncoder().encodeToString(session.cookie.toByteArray(Charsets.UTF_8))
-        sessionFile.outputStream().use { props.store(it, "Primo Music Google session") }
+        sessionFile.outputStream().use { props.store(it, "Koda Music Google session") }
     }
 
     private fun loadSession(): Session? {
