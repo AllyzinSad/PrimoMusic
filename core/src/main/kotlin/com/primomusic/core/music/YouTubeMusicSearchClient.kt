@@ -42,6 +42,68 @@ object YouTubeMusicSearchClient {
         val durationText: String?,
     )
 
+    enum class SearchFilter(
+        val label: String,
+        internal val params: String?,
+    ) {
+        ALL("Tudo", null),
+        SONGS("Músicas", "EgWKAQIIAWoKEAkQChAFEAMQBA=="),
+        VIDEOS("Vídeos", "EgWKAQIQAWoKEAkQChAFEAMQBA=="),
+        ALBUMS("Álbuns", "EgWKAQIYAWoKEAkQChAFEAMQBA=="),
+        ARTISTS("Artistas", "EgWKAQIgAWoKEAkQChAFEAMQBA=="),
+        PLAYLISTS("Playlists", "EgWKAQIoAWoKEAkQChAFEAMQBA=="),
+    }
+
+    enum class BrowseKind {
+        ARTIST,
+        ALBUM,
+        PLAYLIST,
+        OTHER,
+    }
+
+    data class BrowseItem(
+        val browseId: String,
+        val title: String,
+        val subtitle: String?,
+        val thumbnailUrl: String?,
+        val kind: BrowseKind,
+    )
+
+    data class SearchEntry(
+        val track: Track? = null,
+        val browse: BrowseItem? = null,
+    ) {
+        val stableId: String
+            get() = track?.let { "v:${it.videoId}" }
+                ?: browse?.let { "b:${it.browseId}" }
+                ?: "empty"
+    }
+
+    data class ShelfItem(
+        val title: String,
+        val subtitle: String?,
+        val thumbnailUrl: String?,
+        val videoId: String?,
+        val browseId: String?,
+    )
+
+    data class HomeShelf(
+        val title: String,
+        val subtitle: String? = null,
+        val items: List<ShelfItem>,
+    )
+
+    data class MoodGenre(
+        val title: String,
+        val browseId: String,
+        val params: String?,
+    )
+
+    data class MoodGenreSection(
+        val title: String,
+        val items: List<MoodGenre>,
+    )
+
     private const val MUSIC_ORIGIN = "https://music.youtube.com"
     private const val MUSIC_BASE = "$MUSIC_ORIGIN/youtubei/v1"
     private const val CLIENT_NAME = "67"
@@ -155,6 +217,83 @@ object YouTubeMusicSearchClient {
             .take(30)
     }
 
+    suspend fun searchRich(
+        query: String,
+        filter: SearchFilter = SearchFilter.ALL,
+    ): List<SearchEntry> {
+        val normalized = query.trim()
+        require(normalized.isNotBlank()) { "A pesquisa não pode estar vazia." }
+
+        val version = ensureShellConfig()
+        val language = normalizeLanguage(Locale.getDefault().language)
+
+        val response = client.post("$MUSIC_BASE/search") {
+            contentType(ContentType.Application.Json)
+            parameter("prettyPrint", "false")
+            parameter("hl", language)
+            header("User-Agent", USER_AGENT)
+            header("Accept-Language", if (language == "en") "en-US,en;q=0.9" else "$language,en-US;q=0.8,en;q=0.7")
+            header("X-Origin", MUSIC_ORIGIN)
+            header("Origin", MUSIC_ORIGIN)
+            header("Referer", "$MUSIC_ORIGIN/")
+            applyAuthHeaders()
+            header("X-YouTube-Client-Name", CLIENT_NAME)
+            header("X-YouTube-Client-Version", version)
+            cachedVisitorData?.let { header("X-Goog-Visitor-Id", it) }
+            setBody(
+                buildJsonObject {
+                    putJsonObject("context") {
+                        putJsonObject("client") {
+                            put("clientName", "WEB_REMIX")
+                            put("clientVersion", version)
+                            put("hl", language)
+                            put("gl", "BR")
+                            cachedVisitorData?.let { put("visitorData", it) }
+                        }
+                        putJsonObject("user") {
+                            put("lockedSafetyMode", false)
+                            authSession?.dataSyncId?.takeIf { it.isNotBlank() }?.let { put("onBehalfOfUser", it.substringBefore("||")) }
+                        }
+                        putJsonObject("request") { put("useSsl", true) }
+                    }
+                    put("query", normalized)
+                    filter.params?.let { put("params", it) }
+                },
+            )
+        }.body<JsonObject>()
+
+        if (cachedVisitorData == null) {
+            cachedVisitorData = response["responseContext"]?.asObject()
+                ?.get("visitorData")?.asString()
+        }
+
+        return parseSearchEntries(response, filter)
+            .distinctBy { it.stableId }
+            .take(60)
+    }
+
+    suspend fun homeShelves(): List<HomeShelf> =
+        parseHomeShelves(browse("FEmusic_home")).take(14)
+
+    suspend fun newReleaseShelves(): List<HomeShelf> =
+        parseHomeShelves(browse("FEmusic_new_releases")).take(10)
+
+    suspend fun moodAndGenres(): List<MoodGenreSection> =
+        parseMoodAndGenres(browse("FEmusic_moods_and_genres"))
+
+    suspend fun categoryShelves(
+        browseId: String,
+        params: String? = null,
+    ): List<HomeShelf> =
+        parseHomeShelves(browse(browseId, params)).take(14)
+
+    suspend fun browseTracks(
+        browseId: String,
+        params: String? = null,
+    ): List<Track> =
+        parseTracks(browse(browseId, params))
+            .distinctBy { it.videoId }
+            .take(120)
 
 
     suspend fun accountProfile(): AccountProfile? {
@@ -309,11 +448,10 @@ object YouTubeMusicSearchClient {
         walk(root); return found
     }
 
-    private suspend fun browseTracks(browseId: String): List<Track> = parseTracks(browse(browseId))
-        .distinctBy { it.videoId }
-        .take(100)
-
-    private suspend fun browse(browseId: String): JsonObject {
+    private suspend fun browse(
+        browseId: String,
+        params: String? = null,
+    ): JsonObject {
         val version = ensureShellConfig()
         val language = normalizeLanguage(Locale.getDefault().language)
         return client.post("$MUSIC_BASE/browse") {
@@ -329,7 +467,18 @@ object YouTubeMusicSearchClient {
             header("X-YouTube-Client-Name", CLIENT_NAME)
             header("X-YouTube-Client-Version", version)
             cachedVisitorData?.let { header("X-Goog-Visitor-Id", it) }
-            setBody(buildRequestContext(version, language, browseId))
+            setBody(
+                buildRequestContext(version, language, browseId).let { base ->
+                    if (params == null) {
+                        base
+                    } else {
+                        buildJsonObject {
+                            base.forEach { (key, value) -> put(key, value) }
+                            put("params", params)
+                        }
+                    }
+                },
+            )
         }.body()
     }
 
@@ -468,6 +617,218 @@ object YouTubeMusicSearchClient {
     private fun sha1(value: String): String = MessageDigest.getInstance("SHA-1")
         .digest(value.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
+
+    private fun parseSearchEntries(
+        root: JsonElement,
+        filter: SearchFilter,
+    ): List<SearchEntry> {
+        val out = mutableListOf<SearchEntry>()
+
+        fun addResponsive(renderer: JsonObject) {
+            val track = rendererToTrack(renderer)
+            val browseId = findBrowseId(renderer)
+
+            when {
+                track != null && filter !in setOf(SearchFilter.ALBUMS, SearchFilter.ARTISTS, SearchFilter.PLAYLISTS) -> {
+                    out += SearchEntry(track = track)
+                }
+                !browseId.isNullOrBlank() -> {
+                    val title = firstColumnText(renderer) ?: findFirstText(renderer) ?: return
+                    val subtitle = secondColumnText(renderer) ?: findSubtitle(renderer)
+                    out += SearchEntry(
+                        browse = BrowseItem(
+                            browseId = browseId,
+                            title = title,
+                            subtitle = subtitle,
+                            thumbnailUrl = findThumbnail(renderer),
+                            kind = browseKind(browseId, subtitle),
+                        ),
+                    )
+                }
+                track != null -> out += SearchEntry(track = track)
+            }
+        }
+
+        fun addTwoRow(renderer: JsonObject) {
+            val browseId = findBrowseId(renderer)
+            val videoId = findVideoId(renderer)
+            val title = findFirstText(renderer) ?: return
+            val subtitle = findSubtitle(renderer)
+
+            if (!videoId.isNullOrBlank() && filter !in setOf(SearchFilter.ALBUMS, SearchFilter.ARTISTS, SearchFilter.PLAYLISTS)) {
+                out += SearchEntry(
+                    track = Track(
+                        videoId = videoId,
+                        title = title,
+                        artist = subtitle?.substringBefore(" • ")?.takeIf { it.isNotBlank() } ?: "YouTube Music",
+                        thumbnailUrl = findThumbnail(renderer),
+                        durationText = subtitle?.split(" • ")?.lastOrNull { DURATION.matches(it) },
+                    ),
+                )
+                return
+            }
+
+            if (!browseId.isNullOrBlank()) {
+                out += SearchEntry(
+                    browse = BrowseItem(
+                        browseId = browseId,
+                        title = title,
+                        subtitle = subtitle,
+                        thumbnailUrl = findThumbnail(renderer),
+                        kind = browseKind(browseId, subtitle),
+                    ),
+                )
+            }
+        }
+
+        fun walk(element: JsonElement) {
+            when (element) {
+                is JsonObject -> {
+                    element["musicResponsiveListItemRenderer"]?.asObject()?.let(::addResponsive)
+                    element["musicTwoRowItemRenderer"]?.asObject()?.let(::addTwoRow)
+                    element.values.forEach(::walk)
+                }
+                is JsonArray -> element.forEach(::walk)
+                else -> Unit
+            }
+        }
+
+        walk(root)
+        return out
+    }
+
+    private fun firstColumnText(renderer: JsonObject): String? =
+        renderer["flexColumns"].asArray()
+            ?.getOrNull(0)
+            ?.asObject()
+            ?.get("musicResponsiveListItemFlexColumnRenderer")
+            ?.asObject()
+            ?.get("text")
+            ?.asObject()
+            ?.get("runs")
+            ?.asArray()
+            ?.joinToString("") { it.asObject()?.get("text").asString().orEmpty() }
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+    private fun secondColumnText(renderer: JsonObject): String? =
+        renderer["flexColumns"].asArray()
+            ?.getOrNull(1)
+            ?.asObject()
+            ?.get("musicResponsiveListItemFlexColumnRenderer")
+            ?.asObject()
+            ?.get("text")
+            ?.asObject()
+            ?.get("runs")
+            ?.asArray()
+            ?.mapNotNull { it.asObject()?.get("text").asString()?.trim() }
+            ?.filter { it.isNotBlank() && it != "•" }
+            ?.joinToString(" ")
+            ?.replace(Regex("""\s*•\s*"""), " • ")
+            ?.takeIf { it.isNotBlank() }
+
+    private fun browseKind(
+        browseId: String,
+        subtitle: String?,
+    ): BrowseKind {
+        val lower = subtitle.orEmpty().lowercase(Locale.getDefault())
+        return when {
+            browseId.startsWith("UC") || "artist" in lower || "artista" in lower -> BrowseKind.ARTIST
+            browseId.startsWith("MPRE") || browseId.startsWith("MPR") || "album" in lower || "álbum" in lower -> BrowseKind.ALBUM
+            browseId.startsWith("VL") || "playlist" in lower -> BrowseKind.PLAYLIST
+            else -> BrowseKind.OTHER
+        }
+    }
+
+    private fun parseHomeShelves(root: JsonElement): List<HomeShelf> {
+        val out = mutableListOf<HomeShelf>()
+
+        fun shelfFrom(renderer: JsonObject): HomeShelf? {
+            val header = renderer["header"]?.asObject()
+            val title = header?.let(::findFirstText)
+                ?: renderer["title"]?.let(::findFirstText)
+                ?: return null
+            val subtitle = header?.let(::findSubtitle)
+
+            val rawItems = renderer["contents"].asArray().orEmpty()
+            val items = rawItems.mapNotNull { raw ->
+                val itemRenderer =
+                    raw.asObject()?.get("musicTwoRowItemRenderer")?.asObject()
+                        ?: raw.asObject()?.get("musicResponsiveListItemRenderer")?.asObject()
+                        ?: return@mapNotNull null
+                val itemTitle = firstColumnText(itemRenderer)
+                    ?: findFirstText(itemRenderer)
+                    ?: return@mapNotNull null
+                ShelfItem(
+                    title = itemTitle,
+                    subtitle = secondColumnText(itemRenderer) ?: findSubtitle(itemRenderer),
+                    thumbnailUrl = findThumbnail(itemRenderer),
+                    videoId = findVideoId(itemRenderer),
+                    browseId = findBrowseId(itemRenderer),
+                )
+            }.distinctBy { it.videoId ?: it.browseId ?: it.title }
+
+            return items.takeIf { it.isNotEmpty() }?.let {
+                HomeShelf(title = title, subtitle = subtitle, items = it)
+            }
+        }
+
+        fun walk(element: JsonElement) {
+            when (element) {
+                is JsonObject -> {
+                    element["musicCarouselShelfRenderer"]?.asObject()?.let(::shelfFrom)?.let(out::add)
+                    element["musicShelfRenderer"]?.asObject()?.let(::shelfFrom)?.let(out::add)
+                    element.values.forEach(::walk)
+                }
+                is JsonArray -> element.forEach(::walk)
+                else -> Unit
+            }
+        }
+
+        walk(root)
+        return out.distinctBy { it.title }
+    }
+
+    private fun parseMoodAndGenres(root: JsonElement): List<MoodGenreSection> {
+        val out = mutableListOf<MoodGenreSection>()
+
+        fun parseGrid(grid: JsonObject): MoodGenreSection? {
+            val header = grid["header"]?.asObject()
+            val title = header?.let(::findFirstText) ?: return null
+            val items = grid["items"].asArray().orEmpty().mapNotNull { raw ->
+                val button = raw.asObject()?.get("musicNavigationButtonRenderer")?.asObject()
+                    ?: return@mapNotNull null
+                val endpoint =
+                    button["clickCommand"]?.asObject()?.get("browseEndpoint")?.asObject()
+                        ?: button["navigationEndpoint"]?.asObject()?.get("browseEndpoint")?.asObject()
+                        ?: return@mapNotNull null
+                val browseId = endpoint["browseId"].asString()?.takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                val label = button["buttonText"]?.asObject()?.let(::findFirstText)
+                    ?: return@mapNotNull null
+                MoodGenre(
+                    title = label,
+                    browseId = browseId,
+                    params = endpoint["params"].asString(),
+                )
+            }
+            return items.takeIf { it.isNotEmpty() }?.let { MoodGenreSection(title, it) }
+        }
+
+        fun walk(element: JsonElement) {
+            when (element) {
+                is JsonObject -> {
+                    element["gridRenderer"]?.asObject()?.let(::parseGrid)?.let(out::add)
+                    element.values.forEach(::walk)
+                }
+                is JsonArray -> element.forEach(::walk)
+                else -> Unit
+            }
+        }
+
+        walk(root)
+        return out.distinctBy { it.title }
+    }
 
     private fun parseTracks(root: JsonElement): List<Track> {
         val renderers = mutableListOf<JsonObject>()
