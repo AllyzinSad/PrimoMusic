@@ -1316,7 +1316,7 @@ private fun MiniPlayer(
     onAddToPlaylist: () -> Unit,
     onExpand: () -> Unit,
 ) {
-    val playerShape = RoundedCornerShape(24.dp)
+    val playerShape = RoundedCornerShape(18.dp)
     val durationMillis =
         state.durationMillis
             .takeIf { it > 0L }
@@ -1325,72 +1325,57 @@ private fun MiniPlayer(
     LiquidGlassSurface(
         enabled = liquidGlass,
         backdrop = glassBackdrop,
-        modifier = Modifier.fillMaxWidth().height(112.dp),
+        modifier = Modifier.fillMaxWidth().height(86.dp),
         shape = playerShape,
-        solidColor = p.surface,
+        solidColor = Color(0xFF0B0C11),
         tint = p.surface,
-        borderColor = p.border.copy(alpha = 0.78f),
+        borderColor = p.border.copy(alpha = 0.72f),
         accent = p.accent,
-        refractionHeight = 20.dp,
-        refractionAmount = 34.dp,
+        refractionHeight = 14.dp,
+        refractionAmount = 24.dp,
     ) {
         Column(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 9.dp),
+            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 7.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
-                    Modifier.weight(1f),
+                    Modifier.weight(1.1f),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Cover(track?.thumbnailUrl, track?.title, p, 56.dp)
-                    Spacer(Modifier.width(11.dp))
+                    Cover(track?.thumbnailUrl, track?.title, p, 48.dp)
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
                             track?.title ?: "Nenhuma música tocando",
                             color = p.text,
                             fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             when {
-                                state.state == DesktopAudioPlayer.State.RESOLVING ->
-                                    state.message ?: "Preparando áudio…"
-                                state.state == DesktopAudioPlayer.State.ERROR ->
-                                    state.message ?: "Erro no player"
-                                else ->
-                                    track?.artist ?: "Escolha uma música nos resultados"
+                                state.state == DesktopAudioPlayer.State.RESOLVING -> state.message ?: "Preparando áudio…"
+                                state.state == DesktopAudioPlayer.State.ERROR -> state.message ?: "Erro no player"
+                                else -> track?.artist ?: "Escolha uma música"
                             },
-                            color =
-                                if (state.state == DesktopAudioPlayer.State.ERROR) {
-                                    Color(0xFFFF6B6B)
-                                } else {
-                                    p.muted
-                                },
-                            fontSize = 11.sp,
+                            color = if (state.state == DesktopAudioPlayer.State.ERROR) Color(0xFFFF6B6B) else p.muted,
+                            fontSize = 9.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                     IconButton(onClick = onFavorite, enabled = track != null) {
                         Icon(
-                            if (track != null && favorites.contains(track.videoId)) {
-                                Icons.Filled.Favorite
-                            } else {
-                                Icons.Filled.FavoriteBorder
-                            },
-                            null,
-                            tint = p.accent,
+                            if (track != null && favorites.contains(track.videoId)) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            "Favorito",
+                            tint = if (track != null && favorites.contains(track.videoId)) p.accent else p.muted,
+                            modifier = Modifier.size(19.dp),
                         )
-                    }
-                    IconButton(onClick = onAddToPlaylist, enabled = track != null) {
-                        Icon(Icons.Filled.PlaylistAdd, "Adicionar à playlist", tint = p.muted)
                     }
                 }
 
@@ -1400,26 +1385,27 @@ private fun MiniPlayer(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onShuffle) {
-                        Icon(Icons.Filled.Shuffle, null, tint = if (shuffle) p.accent else p.muted)
+                        Icon(Icons.Filled.Shuffle, null, tint = if (shuffle) p.accent else p.muted, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onPrevious, enabled = track != null) {
                         Icon(Icons.Filled.SkipPrevious, null, tint = p.text)
                     }
                     Box(
                         Modifier
-                            .size(46.dp)
+                            .size(42.dp)
                             .clip(CircleShape)
                             .background(if (track != null) p.accent else p.border)
                             .clickable(enabled = track != null, onClick = onToggle),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (state.state == DesktopAudioPlayer.State.RESOLVING) {
-                            CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                         } else {
                             Icon(
                                 if (state.state == DesktopAudioPlayer.State.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 null,
                                 tint = Color.White,
+                                modifier = Modifier.size(24.dp),
                             )
                         }
                     }
@@ -1431,34 +1417,34 @@ private fun MiniPlayer(
                             if (repeat) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                             null,
                             tint = if (repeat) p.accent else p.muted,
+                            modifier = Modifier.size(18.dp),
                         )
-                    }
-                    IconButton(onClick = onStop, enabled = track != null) {
-                        Icon(Icons.Filled.Stop, null, tint = p.muted)
                     }
                 }
 
                 Row(
-                    Modifier.weight(.8f),
+                    Modifier.weight(.9f),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onMute) {
-                        Icon(if (state.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, null, tint = p.muted)
+                        Icon(
+                            if (state.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
+                            null,
+                            tint = p.muted,
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
-                    Slider(value = state.volume.toFloat(), onValueChange = onVolume, modifier = Modifier.width(105.dp))
-                    Text(
-                        "${(state.volume * 100).roundToInt()}%",
-                        color = p.text.copy(alpha = 0.82f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.width(38.dp),
+                    Slider(
+                        value = state.volume.toFloat(),
+                        onValueChange = onVolume,
+                        modifier = Modifier.width(88.dp),
                     )
                     IconButton(onClick = onExpand, enabled = track != null) {
-                        Icon(Icons.Filled.Fullscreen, "Abrir player em tela cheia", tint = if (track != null) p.text else p.muted)
+                        Icon(Icons.Filled.Fullscreen, "Tela cheia", tint = p.text, modifier = Modifier.size(19.dp))
                     }
                     IconButton(onClick = onQueue) {
-                        Icon(Icons.Filled.QueueMusic, null, tint = p.muted)
+                        Icon(Icons.Filled.QueueMusic, "Fila", tint = p.muted, modifier = Modifier.size(19.dp))
                     }
                 }
             }
