@@ -1302,34 +1302,6 @@ private fun KodaTopBar(
 }
 
 @Composable
-private fun HomeView(p: Palette, onSearch: () -> Unit) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Card(
-            modifier = Modifier.fillMaxWidth().height(170.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = p.surface),
-            border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
-        ) {
-            Row(
-                Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xFF181B35), p.accent2))).padding(24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Ouça o que você quiser", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Black)
-                    Text("Pesquisa real e reprodução no Windows.", color = Color.White.copy(alpha = .78f), fontSize = 14.sp)
-                    Button(onClick = onSearch, colors = ButtonDefaults.buttonColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
-                        Icon(Icons.Filled.Search, null, tint = p.accent2); Spacer(Modifier.width(8.dp)); Text("Buscar música", color = p.accent2, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Brand(p.copy(text = Color.White, muted = Color.White.copy(alpha = .65f)))
-            }
-        }
-        EmptyView(p, Icons.Filled.AccountCircle, "Sua Home personalizada", "Ao integrar a sessão da conta do YouTube Music, esta área receberá histórico, playlists e recomendações do perfil.")
-    }
-}
-
-@Composable
 private fun KodaHomeView(
     p: Palette,
     connected: Boolean,
@@ -2430,32 +2402,6 @@ private fun KodaShelfItemCard(
 }
 
 @Composable
-private fun ResultsView(
-    p: Palette,
-    results: List<YouTubeMusicSearchClient.Track>,
-    loading: Boolean,
-    error: String?,
-    favorites: List<String>,
-    onPlay: (YouTubeMusicSearchClient.Track) -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxSize(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = p.surface), border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f))) {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
-            Text("Resultados", color = p.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("YouTube Music", color = p.muted, fontSize = 11.sp)
-            Spacer(Modifier.height(10.dp))
-            when {
-                loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = p.accent) }
-                error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(error, color = p.muted) }
-                results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Pesquise uma música para começar.", color = p.muted) }
-                else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    items(results, key = { it.videoId }) { track -> TrackRow(p, track, favorites.contains(track.videoId)) { onPlay(track) } }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun TrackRow(p: Palette, track: YouTubeMusicSearchClient.Track, favorite: Boolean, onPlay: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Brush.horizontalGradient(listOf(p.surfaceAlt, p.surfaceAlt))).border(1.dp, p.border.copy(alpha = 0.30f), RoundedCornerShape(15.dp)).clickable(onClick = onPlay).padding(10.dp),
@@ -3305,175 +3251,6 @@ private fun LyricsBody(p: Palette, lyrics: LyricsClient.Lyrics, positionMillis: 
 
 
 @Composable
-private fun AccountHomeView(
-    p: Palette,
-    connected: Boolean,
-    loading: Boolean,
-    error: String?,
-    history: List<YouTubeMusicSearchClient.Track>,
-    playlists: List<YouTubeMusicSearchClient.Playlist>,
-    liked: List<YouTubeMusicSearchClient.Track>,
-    onSearch: () -> Unit,
-    onPlay: (YouTubeMusicSearchClient.Track) -> Unit,
-    onPlayLiked: (YouTubeMusicSearchClient.Track) -> Unit,
-    onOpenPlaylist: (YouTubeMusicSearchClient.Playlist) -> Unit,
-    onRefresh: () -> Unit,
-) {
-    val heroTrack = history.firstOrNull() ?: liked.firstOrNull()
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth().height(182.dp),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF090A0F)),
-                border = BorderStroke(1.dp, p.border.copy(alpha = .62f)),
-            ) {
-                Box(Modifier.fillMaxSize()) {
-                    heroTrack?.thumbnailUrl?.let { art ->
-                        AsyncImage(
-                            model = highResolutionThumbnailUrl(art),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            alpha = .34f,
-                        )
-                    }
-
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        Color(0xFF08090D).copy(alpha = .98f),
-                                        Color(0xFF0C0D14).copy(alpha = .78f),
-                                        p.accent2.copy(alpha = .22f),
-                                    ),
-                                ),
-                            ),
-                    )
-
-                    Column(
-                        Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(horizontal = 26.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                "Ouvir ",
-                                color = p.text,
-                                fontSize = 30.sp,
-                                fontWeight = FontWeight.Black,
-                            )
-                            Text(
-                                "agora",
-                                color = p.accent,
-                                fontSize = 30.sp,
-                                fontWeight = FontWeight.Black,
-                            )
-                        }
-                        Text(
-                            "Sua trilha sonora para jogar, focar ou relaxar.",
-                            color = p.text.copy(alpha = .74f),
-                            fontSize = 13.sp,
-                        )
-                        Button(
-                            onClick = {
-                                if (heroTrack != null) onPlay(heroTrack) else onSearch()
-                            },
-                            shape = RoundedCornerShape(13.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = p.accent),
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, null, tint = Color.White)
-                            Spacer(Modifier.width(6.dp))
-                            Text(if (heroTrack != null) "Reproduzir mix" else "Buscar música", fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    if (connected) {
-                        OutlinedButton(
-                            onClick = onRefresh,
-                            enabled = !loading,
-                            modifier = Modifier.align(Alignment.TopEnd).padding(14.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = .16f)),
-                        ) {
-                            Text(if (loading) "Sincronizando…" else "Atualizar", color = Color.White, fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-        }
-
-        error?.let { message ->
-            item {
-                Text(message, color = Color(0xFFFF6B6B), fontSize = 12.sp)
-            }
-        }
-
-        item {
-            KodaSectionTitle(p, "Tocadas recentemente")
-            Spacer(Modifier.height(8.dp))
-            if (history.isEmpty()) {
-                KodaEmptyStrip(
-                    p = p,
-                    text = if (connected) "Seu histórico aparecerá aqui." else "Entre na sua conta para carregar seu histórico.",
-                )
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(history.take(8), key = { it.videoId }) { track ->
-                        KodaTrackCard(p, track) { onPlay(track) }
-                    }
-                }
-            }
-        }
-
-        item {
-            KodaSectionTitle(p, "Playlists para você")
-            Spacer(Modifier.height(8.dp))
-            if (playlists.isEmpty()) {
-                KodaEmptyStrip(
-                    p = p,
-                    text = if (connected) "Suas playlists aparecerão aqui." else "Conecte sua conta para carregar playlists.",
-                )
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(playlists.take(7), key = { it.playlistId }) { playlist ->
-                        KodaPlaylistCard(p, playlist) { onOpenPlaylist(playlist) }
-                    }
-                }
-            }
-        }
-
-        item {
-            KodaSectionTitle(p, "Músicas curtidas")
-            Spacer(Modifier.height(8.dp))
-            if (liked.isEmpty()) {
-                KodaEmptyStrip(
-                    p = p,
-                    text = if (connected) "Suas músicas curtidas aparecerão aqui." else "Conecte sua conta para personalizar esta área.",
-                )
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(liked.take(8), key = { it.videoId }) { track ->
-                        KodaTrackCard(p, track) { onPlayLiked(track) }
-                    }
-                }
-            }
-        }
-
-        item {
-            Spacer(Modifier.height(112.dp))
-        }
-    }
-}
-
-@Composable
 private fun KodaSectionTitle(
     p: Palette,
     title: String,
@@ -3578,35 +3355,6 @@ private fun KodaEmptyStrip(
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
             Text(text, color = p.muted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp))
-        }
-    }
-}
-
-@Composable
-private fun LibraryView(
-    p: Palette,
-    connected: Boolean,
-    loading: Boolean,
-    error: String?,
-    liked: List<YouTubeMusicSearchClient.Track>,
-    onPlay: (YouTubeMusicSearchClient.Track) -> Unit,
-    onRefresh: () -> Unit,
-    onLogin: () -> Unit,
-) {
-    if (!connected) {
-        EmptyView(p, Icons.Filled.LibraryMusic, "Biblioteca", "Conecte sua conta Google para carregar Músicas que gostei e sua biblioteca do YouTube Music.")
-        return
-    }
-    Card(modifier = Modifier.fillMaxSize(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = p.surface), border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f))) {
-        Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column { Text("Músicas que gostei", color = p.text, fontSize = 22.sp, fontWeight = FontWeight.Bold); Text("Sincronizadas da sua conta", color = p.muted, fontSize = 12.sp) }
-                OutlinedButton(onClick = onRefresh, enabled = !loading, border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)), shape = RoundedCornerShape(12.dp)) { Text("Atualizar", color = p.text) }
-            }
-            error?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 12.sp) }
-            if (loading && liked.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = p.accent) }
-            else if (liked.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhuma música curtida foi retornada por esta sessão.", color = p.muted) }
-            else LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) { items(liked, key = { it.videoId }) { TrackRow(p, it, true) { onPlay(it) } } }
         }
     }
 }
