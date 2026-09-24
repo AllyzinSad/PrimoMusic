@@ -47,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -237,10 +236,9 @@ fun FrostedTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(R.drawable.ic_logo),
+                        painter = painterResource(R.drawable.koda_mark),
                         contentDescription = null,
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-                        modifier = Modifier.height(18.dp),
+                        modifier = Modifier.size(30.dp),
                     )
                     // The dev flavor gets its own applicationId so it can sit
                     // installed next to the prod build; this badge is the
