@@ -1204,7 +1204,7 @@ class DesktopAudioPlayer(
     ) {
         thread(
             name =
-                "PrimoMusic-mpv-log",
+                "KodaMusic-mpv-log",
             isDaemon =
                 true,
         ) {
@@ -1278,7 +1278,7 @@ class DesktopAudioPlayer(
     ) {
         thread(
             name =
-                "PrimoMusic-position",
+                "KodaMusic-position",
             isDaemon =
                 true,
         ) {
@@ -1317,7 +1317,7 @@ class DesktopAudioPlayer(
     ) {
         thread(
             name =
-                "PrimoMusic-mpv-watch",
+                "KodaMusic-mpv-watch",
             isDaemon =
                 true,
         ) {
@@ -1457,39 +1457,67 @@ class DesktopAudioPlayer(
     private fun stopProcess(
         expected: Boolean,
     ) {
-        val active =
-            process
+        val active = process
 
-        if (
-            active != null &&
-            active.isAlive
-        ) {
+        if (active != null && active.isAlive) {
             if (expected) {
-                expectedStopSerial =
-                    launchSerial.get()
+                expectedStopSerial = launchSerial.get()
+            }
+
+            // Ask mpv to exit cleanly first. If IPC is unavailable or mpv is
+            // stuck, fall back to terminating only the process tree created by
+            // this player instance. We deliberately never use a global
+            // taskkill /IM mpv.exe because that could kill another user's mpv.
+            runCatching {
+                if (currentPipePath != null) {
+                    sendJsonIpc("""{"command":["quit"]}""")
+                }
             }
 
             runCatching {
-                active.destroy()
+                active.waitFor(300, TimeUnit.MILLISECONDS)
             }
 
-            runCatching {
-                if (
-                    !active.waitFor(
-                        450,
-                        TimeUnit.MILLISECONDS,
-                    )
-                ) {
-                    active.destroyForcibly()
+            if (active.isAlive) {
+                val root = active.toHandle()
+                val descendants =
+                    runCatching { root.descendants().toList().asReversed() }
+                        .getOrDefault(emptyList())
+
+                descendants.forEach { child ->
+                    runCatching {
+                        if (child.isAlive) child.destroy()
+                    }
+                }
+
+                runCatching {
+                    if (root.isAlive) root.destroy()
+                }
+
+                runCatching {
+                    active.waitFor(700, TimeUnit.MILLISECONDS)
+                }
+
+                descendants.forEach { child ->
+                    runCatching {
+                        if (child.isAlive) child.destroyForcibly()
+                    }
+                }
+
+                runCatching {
+                    if (root.isAlive) root.destroyForcibly()
+                }
+
+                // Do not return from close() while the mpv process we own is
+                // still alive. A bounded wait keeps shutdown deterministic.
+                runCatching {
+                    active.waitFor(1_500, TimeUnit.MILLISECONDS)
                 }
             }
         }
 
-        process =
-            null
-
-        currentPipePath =
-            null
+        process = null
+        currentPipePath = null
     }
 
     /**
