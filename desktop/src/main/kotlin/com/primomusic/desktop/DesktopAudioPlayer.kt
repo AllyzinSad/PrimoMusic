@@ -416,7 +416,7 @@ class DesktopAudioPlayer(
                 .incrementAndGet()
 
         thread(
-            name = "PrimoMusic-volume",
+            name = "KodaMusic-volume",
             isDaemon = true,
         ) {
             Thread.sleep(45)
@@ -960,7 +960,7 @@ class DesktopAudioPlayer(
 
         thread(
             name =
-                "PrimoMusic-resume",
+                "KodaMusic-resume",
             isDaemon =
                 true,
         ) {
@@ -1012,7 +1012,7 @@ class DesktopAudioPlayer(
 
         thread(
             name =
-                "PrimoMusic-restart",
+                "KodaMusic-restart",
             isDaemon =
                 true,
         ) {
