@@ -10,6 +10,16 @@ on:
       - 'settings.gradle.kts'
       - 'gradle/**'
       - 'gradle.properties'
+  push:
+    branches: [ primo-3.11.0-redesign ]
+    paths:
+      - 'desktop/**'
+      - 'core/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '.github/workflows/desktop-ci.yml'
 
 permissions:
   contents: read
@@ -30,6 +40,17 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Compile Primo Music Desktop
+      - name: Compile Koda Music Desktop
         shell: pwsh
         run: .\gradlew.bat :desktop:compileKotlin --stacktrace
+
+      - name: Build verified portable test package
+        shell: pwsh
+        run: .\gradlew.bat :desktop:portableZip --stacktrace
+
+      - name: Upload portable test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: KodaMusic-3.11.0-Portable
+          path: release/KodaMusic-3.11.0-Portable.zip
+          if-no-files-found: error
