@@ -973,7 +973,7 @@ private fun Brand(p: Palette) {
             modifier = Modifier.size(46.dp),
         )
         Column {
-            Text("P MUSIC", color = p.text, fontWeight = FontWeight.Black, fontSize = 17.sp, letterSpacing = 1.4.sp)
+            Text("KODA", color = p.text, fontWeight = FontWeight.Black, fontSize = 17.sp, letterSpacing = 1.4.sp)
             Text("Koda Music", color = p.muted, fontSize = 10.sp)
         }
     }
