@@ -62,8 +62,8 @@ android {
         // Haze falls back to a translucent scrim below that.
         minSdk = 26
         targetSdk = 36
-        versionCode = 31102
-        versionName = "3.11.0-alpha2"
+        versionCode = 31103
+        versionName = "3.11.0-alpha3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -100,7 +100,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.kodamusic.alpha2"
+            applicationId = "com.kodamusic.alpha3"
             resValue("string", "app_name", "Koda Music")
         }
         create("prod") {

@@ -760,7 +760,7 @@ object AppSettings {
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
-        reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
+        reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, true)
         highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
         performanceRefreshRate.value = normalizePerformanceRefreshRate(
             prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
@@ -770,9 +770,9 @@ object AppSettings {
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
-        reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
+        reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, true)
         liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, false)
-        lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
+        lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, false)
         lyricsOffsetMs.value = prefs.getInt(KEY_LYRICS_OFFSET_MS, 0)
             .coerceIn(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
         translationLanguage.value = prefs.getString(KEY_TRANSLATION_LANGUAGE, "").orEmpty()
@@ -780,9 +780,9 @@ object AppSettings {
             reduceAnimation.value = false
             reduceDynamicBlur.value = false
         }
-        animatedCanvas.value = prefs.getBoolean(KEY_ANIMATED_CANVAS, true)
+        animatedCanvas.value = prefs.getBoolean(KEY_ANIMATED_CANVAS, false)
         canvasOverCellular.value = prefs.getBoolean(KEY_CANVAS_OVER_CELLULAR, false)
-        fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, true)
+        fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, false)
         legacyMeshGradient.value = prefs.getBoolean(KEY_LEGACY_MESH_GRADIENT, false)
         syncedLyrics.value = prefs.getBoolean(KEY_SYNCED_LYRICS, true)
         lyricsSources.value = readLyricsSources()
@@ -808,7 +808,7 @@ object AppSettings {
         listenBrainzToken.value = prefs.getString(KEY_LISTENBRAINZ_TOKEN, "").orEmpty()
         listenBrainzPrimaryArtistOnly.value = prefs.getBoolean(KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY, false)
         spotifySpdcToken.value = prefs.getString(KEY_SPOTIFY_SPDC_TOKEN, "").orEmpty()
-        replayGenres.value = prefs.getBoolean(KEY_REPLAY_GENRES, true)
+        replayGenres.value = prefs.getBoolean(KEY_REPLAY_GENRES, false)
         filterNonMusicAudio.value = prefs.getBoolean(KEY_FILTER_NON_MUSIC_AUDIO, true)
         localMusicSort.value = readLocalMusicSort(KEY_LOCAL_MUSIC_SORT)
         downloadedMusicSort.value = readLocalMusicSort(KEY_DOWNLOADED_MUSIC_SORT)
