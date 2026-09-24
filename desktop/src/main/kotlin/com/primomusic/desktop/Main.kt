@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
@@ -121,6 +120,10 @@ import com.primomusic.core.music.LyricsClient
 import com.primomusic.desktop.ui.LiquidGlassSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.longOrNull
 import java.awt.Desktop
 import java.net.URI
 import kotlin.math.roundToInt
@@ -214,14 +217,14 @@ private fun Modifier.liquidGlassSurface(
 }
 
 private enum class Section(val label: String, val icon: ImageVector) {
-    HOME("Home", Icons.Filled.Home),
+    HOME("Ouvir agora", Icons.Filled.Home),
     EXPLORE("Explorar", Icons.Filled.MusicNote),
     SEARCH("Buscar", Icons.Filled.Search),
     LIBRARY("Biblioteca", Icons.Filled.LibraryMusic),
     PLAYLISTS("Playlists", Icons.Filled.QueueMusic),
     LIKED("Curtidas", Icons.Filled.Favorite),
     HISTORY("Histórico", Icons.Filled.Article),
-    DOWNLOADS("Downloads", Icons.Filled.Download),
+    TOGETHER("Ouvir juntos", Icons.Filled.LibraryMusic),
     SETTINGS("Configurações", Icons.Filled.Settings),
 }
 
@@ -371,6 +374,44 @@ private fun KodaMusicApp(
     var lyricsVisible by remember { mutableStateOf(false) }
     val favorites = remember { mutableStateListOf<String>() }
     val scope = rememberCoroutineScope()
+    var partyRoom by remember { mutableStateOf(ListenTogetherDesktop.Room()) }
+    val party = remember { ListenTogetherDesktop(scope) { partyRoom = it } }
+    var partyServer by remember { mutableStateOf(party.savedServer) }
+    var partyCode by remember { mutableStateOf("") }
+    var partyBusy by remember { mutableStateOf(false) }
+    var partyError by remember { mutableStateOf<String?>(null) }
+
+    // The room's numbered playback frame is authoritative. The local player
+    // follows it, including when a device joins an already running song.
+    LaunchedEffect(partyRoom.playback, partyRoom.connected) {
+        if (!partyRoom.connected) return@LaunchedEffect
+        val playback = partyRoom.playback ?: return@LaunchedEffect
+        val remote = runCatching { playback["track"]?.jsonObject }.getOrNull() ?: return@LaunchedEffect
+        val videoId = remote["videoId"]?.jsonPrimitive?.contentOrNull ?: return@LaunchedEffect
+        val playing = playback["isPlaying"]?.jsonPrimitive?.contentOrNull == "true"
+        val anchor = playback["anchorMs"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis()
+        val base = playback["positionMs"]?.jsonPrimitive?.longOrNull ?: 0L
+        val expected = base + if (playing) (System.currentTimeMillis() - anchor).coerceAtLeast(0L) else 0L
+        if (selected?.videoId != videoId) {
+            selected = YouTubeMusicSearchClient.Track(
+                videoId, remote["title"]?.jsonPrimitive?.contentOrNull ?: "Música",
+                remote["artist"]?.jsonPrimitive?.contentOrNull ?: "",
+                remote["thumbnailUrl"]?.jsonPrimitive?.contentOrNull, null,
+            )
+            if (playing) {
+                runCatching { player.play(videoId, playerState.volume, audioQuality, 0L) { playerState = it } }
+                if (expected > 0 && playerState.durationMillis > 0) player.seek((expected.toFloat() / playerState.durationMillis).coerceIn(0f, 1f)) { playerState = it }
+            }
+        } else {
+            if (playing && playerState.state != DesktopAudioPlayer.State.PLAYING) {
+                if (playerState.state == DesktopAudioPlayer.State.PAUSED) player.toggle { playerState = it }
+                else runCatching { player.play(videoId, playerState.volume, audioQuality, 0L) { playerState = it } }
+            } else if (!playing && playerState.state == DesktopAudioPlayer.State.PLAYING) player.toggle { playerState = it }
+            if (playerState.durationMillis > 0 && kotlin.math.abs(playerState.positionMillis - expected) > 1800L) {
+                player.seek((expected.toFloat() / playerState.durationMillis).coerceIn(0f, 1f)) { playerState = it }
+            }
+        }
+    }
 
     fun search(
         value: String = query,
@@ -399,6 +440,7 @@ private fun KodaMusicApp(
     }
 
     fun playTrack(track: YouTubeMusicSearchClient.Track, sourceQueue: List<YouTubeMusicSearchClient.Track> = emptyList()) {
+        party.control("setTrack", 0L, track)
         selected = track
         lyricsVisible = false
         val normalizedQueue = sourceQueue.distinctBy { it.videoId }
@@ -915,8 +957,27 @@ private fun KodaMusicApp(
                                             onRefresh = ::refreshAccount,
                                         )
 
-                                    Section.DOWNLOADS ->
-                                        KodaDownloadsView(p)
+                                    Section.TOGETHER ->
+                                        ListenTogetherView(
+                                            p = p,
+                                            server = partyServer,
+                                            onServer = { partyServer = it },
+                                            code = partyCode,
+                                            onCode = { partyCode = it },
+                                            room = partyRoom,
+                                            busy = partyBusy,
+                                            error = partyError,
+                                            onEnter = { joinCode ->
+                                                partyBusy = true
+                                                partyError = null
+                                                scope.launch {
+                                                    party.enter(partyServer, joinCode, accountProfile?.name ?: if (accountConnected) "Koda" else "", accountProfile?.thumbnailUrl)
+                                                        .onFailure { partyError = it.message }
+                                                    partyBusy = false
+                                                }
+                                            },
+                                            onLeave = { party.leave() },
+                                        )
 
                                     Section.SETTINGS ->
                                         SettingsView(
@@ -986,6 +1047,7 @@ private fun KodaMusicApp(
                                     playTrack(it, playbackQueue)
                                 }
                             } else {
+                                party.control(if (playerState.state == DesktopAudioPlayer.State.PLAYING) "pause" else "play", playerState.positionMillis)
                                 player.toggle {
                                     playerState = it
                                 }
@@ -997,6 +1059,7 @@ private fun KodaMusicApp(
                             }
                         },
                         onSeek = {
+                            party.control("seek", (playerState.durationMillis * it).toLong())
                             player.seek(it) { snap ->
                                 playerState = snap
                             }
@@ -1059,9 +1122,15 @@ private fun KodaMusicApp(
                     onToggle = {
                         if (playerState.state in setOf(DesktopAudioPlayer.State.STOPPED, DesktopAudioPlayer.State.ERROR, DesktopAudioPlayer.State.IDLE)) {
                             selected?.let { playTrack(it, playbackQueue) }
-                        } else player.toggle { playerState = it }
+                        } else {
+                            party.control(if (playerState.state == DesktopAudioPlayer.State.PLAYING) "pause" else "play", playerState.positionMillis)
+                            player.toggle { playerState = it }
+                        }
                     },
-                    onSeek = { player.seek(it) { snap -> playerState = snap } },
+                    onSeek = {
+                        party.control("seek", (playerState.durationMillis * it).toLong())
+                        player.seek(it) { snap -> playerState = snap }
+                    },
                     onVolume = { player.setVolume(it) { snap -> playerState = snap } },
                     onMute = { player.toggleMute { snap -> playerState = snap } },
                 )
@@ -1980,30 +2049,12 @@ private fun KodaLibraryHubView(
         }
 
         item {
-            Text("No dispositivo", color = p.text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("Em breve", color = p.text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                KodaLibraryTile(
-                    p = p,
-                    title = "Downloads",
-                    subtitle = "Offline no Windows",
-                    icon = Icons.Filled.Download,
-                    modifier = Modifier.weight(1f),
-                    status = "EM DESENVOLVIMENTO",
-                    onClick = { onNavigate(Section.DOWNLOADS) },
-                )
-                KodaLibraryTile(
-                    p = p,
-                    title = "Música local",
-                    subtitle = "MP3, FLAC e mais",
-                    icon = Icons.Filled.LibraryMusic,
-                    modifier = Modifier.weight(1f),
-                    status = "PLANEJADO",
-                    onClick = null,
-                )
                 KodaLibraryTile(
                     p = p,
                     title = "Replay",
@@ -2131,49 +2182,35 @@ private fun KodaTrackCollectionView(
 }
 
 @Composable
-private fun KodaDownloadsView(
+private fun ListenTogetherView(
     p: Palette,
+    server: String,
+    onServer: (String) -> Unit,
+    code: String,
+    onCode: (String) -> Unit,
+    room: ListenTogetherDesktop.Room,
+    busy: Boolean,
+    error: String?,
+    onEnter: (String?) -> Unit,
+    onLeave: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text("Downloads", color = p.text, fontSize = 26.sp, fontWeight = FontWeight.Black)
-        Text(
-            "A estrutura visual já faz parte do Koda 3.11. O mecanismo offline será integrado sem misturar arquivos temporários do streaming com downloads do usuário.",
-            color = p.muted,
-            fontSize = 11.sp,
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth().height(150.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = p.surface),
-            border = BorderStroke(1.dp, p.border.copy(alpha = .42f)),
-        ) {
-            Row(
-                Modifier.fillMaxSize().padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    modifier = Modifier.size(62.dp),
-                    color = p.accent.copy(alpha = .13f),
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.Download, null, tint = p.accent, modifier = Modifier.size(30.dp))
-                    }
-                }
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text("Offline com controle real", color = p.text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Próxima etapa: pasta de downloads, progresso, remoção e reprodução local.",
-                        color = p.muted,
-                        fontSize = 10.sp,
-                    )
-                }
-            }
+    Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Ouvir juntos", color = p.text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("Compartilhe um código e controle a reprodução com outras pessoas.", color = p.muted)
+        if (room.code.isNotBlank()) {
+            Text("Código da sala: ${room.code}", color = p.accent, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(if (room.connected) "Conectado" else "Reconecte à sala", color = p.muted)
+            room.members.forEach { Text(it, color = p.text) }
+            room.error?.let { Text(it, color = Color(0xFFFF8080)) }
+            OutlinedButton(onClick = onLeave) { Text("Sair da sala") }
+        } else {
+            TextField(value = server, onValueChange = onServer, label = { Text("Endereço do servidor de salas") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text("Use o endereço HTTPS do servidor Ouvir Juntos do Koda.", color = p.muted, fontSize = 11.sp)
+            Button(onClick = { onEnter(null) }, enabled = !busy && server.isNotBlank()) { Text("Criar sala") }
+            TextField(value = code, onValueChange = { onCode(it.take(6).uppercase()) }, label = { Text("Código de seis caracteres") }, singleLine = true)
+            OutlinedButton(onClick = { onEnter(code) }, enabled = !busy && code.length == 6 && server.isNotBlank()) { Text("Entrar na sala") }
         }
+        error?.let { Text(it, color = Color(0xFFFF8080)) }
     }
 }
 
