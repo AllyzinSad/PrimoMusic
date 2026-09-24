@@ -624,58 +624,90 @@ object YouTubeMusicSearchClient {
     ): List<SearchEntry> {
         val out = mutableListOf<SearchEntry>()
 
-        fun addResponsive(renderer: JsonObject) {
-            val track = rendererToTrack(renderer)
-            val browseId = findBrowseId(renderer)
+        fun directBrowse(renderer: JsonObject): BrowseItem? {
+            val endpoint = renderer["navigationEndpoint"]?.asObject()
+                ?.get("browseEndpoint")?.asObject()
+                ?: return null
+            val browseId = endpoint["browseId"].asString()?.takeIf { it.isNotBlank() }
+                ?: return null
+            val title = firstColumnText(renderer) ?: findFirstText(renderer) ?: return null
+            val subtitle = secondColumnText(renderer) ?: findSubtitle(renderer)
+            val pageType =
+                endpoint["browseEndpointContextSupportedConfigs"]?.asObject()
+                    ?.get("browseEndpointContextMusicConfig")?.asObject()
+                    ?.get("pageType").asString()
+                    .orEmpty()
+            return BrowseItem(
+                browseId = browseId,
+                title = title,
+                subtitle = subtitle,
+                thumbnailUrl = findThumbnail(renderer),
+                kind = browseKindFromPageType(pageType, browseId, subtitle),
+            )
+        }
 
-            when {
-                track != null && filter !in setOf(SearchFilter.ALBUMS, SearchFilter.ARTISTS, SearchFilter.PLAYLISTS) -> {
-                    out += SearchEntry(track = track)
-                }
-                !browseId.isNullOrBlank() -> {
-                    val title = firstColumnText(renderer) ?: findFirstText(renderer) ?: return
-                    val subtitle = secondColumnText(renderer) ?: findSubtitle(renderer)
-                    out += SearchEntry(
-                        browse = BrowseItem(
-                            browseId = browseId,
-                            title = title,
-                            subtitle = subtitle,
-                            thumbnailUrl = findThumbnail(renderer),
-                            kind = browseKind(browseId, subtitle),
-                        ),
-                    )
-                }
-                track != null -> out += SearchEntry(track = track)
+        fun addResponsive(renderer: JsonObject) {
+            // Album / artist / playlist rows can contain a playable overlay
+            // video id. Their own navigationEndpoint is authoritative and must
+            // be tested before treating the row as a song.
+            directBrowse(renderer)?.let { browse ->
+                out += SearchEntry(browse = browse)
+                return
+            }
+
+            rendererToTrack(renderer)?.let { track ->
+                out += SearchEntry(track = track)
             }
         }
 
         fun addTwoRow(renderer: JsonObject) {
-            val browseId = findBrowseId(renderer)
-            val videoId = findVideoId(renderer)
-            val title = findFirstText(renderer) ?: return
-            val subtitle = findSubtitle(renderer)
+            val title =
+                renderer["title"]?.asObject()?.let(::findFirstText)
+                    ?: findFirstText(renderer)
+                    ?: return
+            val subtitle =
+                renderer["subtitle"]?.asObject()?.let(::findFirstText)
+                    ?: findSubtitle(renderer)
 
-            if (!videoId.isNullOrBlank() && filter !in setOf(SearchFilter.ALBUMS, SearchFilter.ARTISTS, SearchFilter.PLAYLISTS)) {
-                out += SearchEntry(
-                    track = Track(
-                        videoId = videoId,
-                        title = title,
-                        artist = subtitle?.substringBefore(" • ")?.takeIf { it.isNotBlank() } ?: "YouTube Music",
-                        thumbnailUrl = findThumbnail(renderer),
-                        durationText = subtitle?.split(" • ")?.lastOrNull { DURATION.matches(it) },
-                    ),
-                )
-                return
-            }
+            val navigation = renderer["navigationEndpoint"]?.asObject()
+            val browseEndpoint = navigation?.get("browseEndpoint")?.asObject()
+            val browseId = browseEndpoint?.get("browseId").asString()
+            val pageType =
+                browseEndpoint
+                    ?.get("browseEndpointContextSupportedConfigs")?.asObject()
+                    ?.get("browseEndpointContextMusicConfig")?.asObject()
+                    ?.get("pageType").asString()
+                    .orEmpty()
 
-            if (!browseId.isNullOrBlank()) {
+            if (!browseId.isNullOrBlank() && !browseId.startsWith("MPED")) {
                 out += SearchEntry(
                     browse = BrowseItem(
                         browseId = browseId,
                         title = title,
                         subtitle = subtitle,
                         thumbnailUrl = findThumbnail(renderer),
-                        kind = browseKind(browseId, subtitle),
+                        kind = browseKindFromPageType(pageType, browseId, subtitle),
+                    ),
+                )
+                return
+            }
+
+            val directVideoId =
+                navigation?.get("watchEndpoint")?.asObject()
+                    ?.get("videoId").asString()
+                    ?: browseId?.takeIf { it.startsWith("MPED") }?.removePrefix("MPED")
+
+            if (!directVideoId.isNullOrBlank()) {
+                out += SearchEntry(
+                    track = Track(
+                        videoId = directVideoId,
+                        title = title,
+                        artist = artistFromSubtitle(subtitle),
+                        thumbnailUrl = findThumbnail(renderer),
+                        durationText = subtitle
+                            ?.split(" • ")
+                            ?.map(String::trim)
+                            ?.lastOrNull { DURATION.matches(it) },
                     ),
                 )
             }
@@ -694,7 +726,57 @@ object YouTubeMusicSearchClient {
         }
 
         walk(root)
-        return out
+
+        return out.filter { entry ->
+            when (filter) {
+                SearchFilter.ALL -> true
+                SearchFilter.SONGS,
+                SearchFilter.VIDEOS,
+                -> entry.track != null
+                SearchFilter.ALBUMS -> entry.browse?.kind == BrowseKind.ALBUM
+                SearchFilter.ARTISTS -> entry.browse?.kind == BrowseKind.ARTIST
+                SearchFilter.PLAYLISTS -> entry.browse?.kind == BrowseKind.PLAYLIST
+            }
+        }
+    }
+
+    private fun browseKindFromPageType(
+        pageType: String,
+        browseId: String,
+        subtitle: String?,
+    ): BrowseKind =
+        when {
+            "ARTIST" in pageType -> BrowseKind.ARTIST
+            "ALBUM" in pageType -> BrowseKind.ALBUM
+            "PLAYLIST" in pageType -> BrowseKind.PLAYLIST
+            else -> browseKind(browseId, subtitle)
+        }
+
+    private fun artistFromSubtitle(subtitle: String?): String {
+        val parts = subtitle
+            .orEmpty()
+            .split(" • ")
+            .map(String::trim)
+            .filter { it.isNotBlank() }
+
+        return parts.firstOrNull { part ->
+            val lower = part.lowercase(Locale.getDefault())
+            !DURATION.matches(part) &&
+                lower !in setOf(
+                    "song",
+                    "music",
+                    "video",
+                    "album",
+                    "single",
+                    "ep",
+                    "artist",
+                    "playlist",
+                    "música",
+                    "vídeo",
+                    "álbum",
+                    "artista",
+                )
+        } ?: "YouTube Music"
     }
 
     private fun firstColumnText(renderer: JsonObject): String? =
@@ -756,15 +838,47 @@ object YouTubeMusicSearchClient {
                     raw.asObject()?.get("musicTwoRowItemRenderer")?.asObject()
                         ?: raw.asObject()?.get("musicResponsiveListItemRenderer")?.asObject()
                         ?: return@mapNotNull null
-                val itemTitle = firstColumnText(itemRenderer)
-                    ?: findFirstText(itemRenderer)
-                    ?: return@mapNotNull null
+                val itemTitle =
+                    itemRenderer["title"]?.asObject()?.let(::findFirstText)
+                        ?: firstColumnText(itemRenderer)
+                        ?: findFirstText(itemRenderer)
+                        ?: return@mapNotNull null
+                val itemSubtitle =
+                    itemRenderer["subtitle"]?.asObject()?.let(::findFirstText)
+                        ?: secondColumnText(itemRenderer)
+                        ?: findSubtitle(itemRenderer)
+
+                val navigation = itemRenderer["navigationEndpoint"]?.asObject()
+                val directBrowseId =
+                    navigation?.get("browseEndpoint")?.asObject()
+                        ?.get("browseId").asString()
+                val directVideoId =
+                    navigation?.get("watchEndpoint")?.asObject()
+                        ?.get("videoId").asString()
+                        ?: directBrowseId
+                            ?.takeIf { it.startsWith("MPED") }
+                            ?.removePrefix("MPED")
+
+                val resolvedBrowseId =
+                    directBrowseId?.takeUnless { it.startsWith("MPED") }
+                        ?: if (navigation == null) {
+                            // Responsive shelf rows often keep their play id in
+                            // the overlay rather than a top-level endpoint.
+                            null
+                        } else {
+                            null
+                        }
+
                 ShelfItem(
                     title = itemTitle,
-                    subtitle = secondColumnText(itemRenderer) ?: findSubtitle(itemRenderer),
+                    subtitle = itemSubtitle,
                     thumbnailUrl = findThumbnail(itemRenderer),
-                    videoId = findVideoId(itemRenderer),
-                    browseId = findBrowseId(itemRenderer),
+                    videoId = directVideoId
+                        ?: if (resolvedBrowseId == null) findVideoId(itemRenderer) else null,
+                    browseId = resolvedBrowseId
+                        ?: itemRenderer["navigationEndpoint"]?.asObject()
+                            ?.get("browseEndpoint")?.asObject()
+                            ?.get("browseId").asString(),
                 )
             }.distinctBy { it.videoId ?: it.browseId ?: it.title }
 
