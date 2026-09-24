@@ -30,6 +30,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Validate image resources
+      run: python3 .github/scripts/check_android_pngs.py
+
     - name: Build Dev Debug APK
       run: ./gradlew -PincludeAndroid=true :app:assembleDevDebug
 
