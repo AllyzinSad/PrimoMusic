@@ -1,19 +1,17 @@
-<!--
-  Monochrome Koda mark for the Android media notification.
-  Android uses the alpha silhouette for the status-bar icon.
--->
+<!-- Koda Music monochrome notification mark: sound-wave bars + K. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="1024"
     android:viewportHeight="1024">
-    <group
-        android:pivotX="512"
-        android:pivotY="512"
-        android:scaleX="0.78"
-        android:scaleY="0.78">
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M250,210 L390,210 L390,445 L640,210 L820,210 L548,472 L838,814 L654,814 L452,568 L390,628 L390,814 L250,814 Z" />
-    </group>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M155,430 Q155,400 185,400 Q215,400 215,430 L215,594 Q215,624 185,624 Q155,624 155,594 Z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M250,350 Q250,320 280,320 Q310,320 310,350 L310,674 Q310,704 280,704 Q250,704 250,674 Z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M345,270 Q345,240 375,240 Q405,240 405,270 L405,754 Q405,784 375,784 Q345,784 345,754 Z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M445,220 Q445,185 480,185 Q515,185 515,220 L515,804 Q515,839 480,839 Q445,839 445,804 Z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M555,185 L625,185 L625,450 L805,205 L895,205 L690,486 L908,819 L818,819 L642,548 L625,568 L625,819 L555,819 Z"/>
 </vector>
