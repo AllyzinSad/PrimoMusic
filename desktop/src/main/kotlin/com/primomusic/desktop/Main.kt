@@ -215,9 +215,12 @@ private fun Modifier.liquidGlassSurface(
 
 private enum class Section(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Filled.Home),
+    EXPLORE("Explorar", Icons.Filled.MusicNote),
     SEARCH("Buscar", Icons.Filled.Search),
     LIBRARY("Biblioteca", Icons.Filled.LibraryMusic),
     PLAYLISTS("Playlists", Icons.Filled.QueueMusic),
+    LIKED("Curtidas", Icons.Filled.Favorite),
+    HISTORY("Histórico", Icons.Filled.Article),
     DOWNLOADS("Downloads", Icons.Filled.Download),
     SETTINGS("Configurações", Icons.Filled.Settings),
 }
@@ -308,8 +311,27 @@ private fun KodaMusicApp(
     var query by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var results by remember { mutableStateOf<List<YouTubeMusicSearchClient.Track>>(emptyList()) }
+    var richResults by remember { mutableStateOf<List<YouTubeMusicSearchClient.SearchEntry>>(emptyList()) }
+    var searchFilter by remember { mutableStateOf(YouTubeMusicSearchClient.SearchFilter.ALL) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    var discoveryShelves by remember { mutableStateOf<List<YouTubeMusicSearchClient.HomeShelf>>(emptyList()) }
+    var discoveryLoading by remember { mutableStateOf(false) }
+    var discoveryError by remember { mutableStateOf<String?>(null) }
+
+    var exploreSections by remember { mutableStateOf<List<YouTubeMusicSearchClient.MoodGenreSection>>(emptyList()) }
+    var exploreLoading by remember { mutableStateOf(false) }
+    var exploreError by remember { mutableStateOf<String?>(null) }
+    var openedMood by remember { mutableStateOf<YouTubeMusicSearchClient.MoodGenre?>(null) }
+    var openedMoodShelves by remember { mutableStateOf<List<YouTubeMusicSearchClient.HomeShelf>>(emptyList()) }
+    var openedMoodLoading by remember { mutableStateOf(false) }
+
+    var openedBrowse by remember { mutableStateOf<YouTubeMusicSearchClient.BrowseItem?>(null) }
+    var openedBrowseTracks by remember { mutableStateOf<List<YouTubeMusicSearchClient.Track>>(emptyList()) }
+    var openedBrowseShelves by remember { mutableStateOf<List<YouTubeMusicSearchClient.HomeShelf>>(emptyList()) }
+    var openedBrowseLoading by remember { mutableStateOf(false) }
+    var openedBrowseError by remember { mutableStateOf<String?>(null) }
     var loginOpen by remember { mutableStateOf(false) }
     var accountConnected by remember { mutableStateOf(DesktopGoogleLogin.restore()) }
     var accountError by remember { mutableStateOf<String?>(null) }
@@ -338,16 +360,28 @@ private fun KodaMusicApp(
     val favorites = remember { mutableStateListOf<String>() }
     val scope = rememberCoroutineScope()
 
-    fun search(value: String = query) {
+    fun search(
+        value: String = query,
+        filter: YouTubeMusicSearchClient.SearchFilter = searchFilter,
+    ) {
         if (value.isBlank() || loading) return
         query = value
+        searchFilter = filter
         section = Section.SEARCH
+        openedBrowse = null
         loading = true
         error = null
         scope.launch {
-            runCatching { YouTubeMusicSearchClient.search(value) }
-                .onSuccess { results = it }
-                .onFailure { error = it.message ?: "Não foi possível pesquisar." }
+            runCatching { YouTubeMusicSearchClient.searchRich(value, filter) }
+                .onSuccess { entries ->
+                    richResults = entries
+                    results = entries.mapNotNull { it.track }.distinctBy { it.videoId }
+                }
+                .onFailure {
+                    richResults = emptyList()
+                    results = emptyList()
+                    error = it.message ?: "Não foi possível pesquisar."
+                }
             loading = false
         }
     }
@@ -407,7 +441,13 @@ private fun KodaMusicApp(
                     if (wantLiked) { if (!favorites.contains(videoId)) favorites.add(videoId) }
                     else favorites.remove(videoId)
                     accountLiked = if (wantLiked) {
-                        val track = (results + listOfNotNull(selected)).firstOrNull { it.videoId == videoId }
+                        val track = (
+                            results +
+                                richResults.mapNotNull { it.track } +
+                                accountHistory +
+                                accountLiked +
+                                listOfNotNull(selected)
+                            ).firstOrNull { it.videoId == videoId }
                         if (track != null && accountLiked.none { it.videoId == videoId }) listOf(track) + accountLiked else accountLiked
                     } else accountLiked.filterNot { it.videoId == videoId }
                 }
@@ -445,6 +485,88 @@ private fun KodaMusicApp(
                 .onFailure { accountError = it.message ?: "Não foi possível abrir a playlist." }
             openedPlaylistLoading = false
         }
+    }
+
+
+    fun openBrowse(item: YouTubeMusicSearchClient.BrowseItem) {
+        openedBrowse = item
+        openedBrowseTracks = emptyList()
+        openedBrowseShelves = emptyList()
+        openedBrowseError = null
+        openedBrowseLoading = true
+        scope.launch {
+            runCatching {
+                val tracks = YouTubeMusicSearchClient.browseTracks(item.browseId)
+                val shelves = YouTubeMusicSearchClient.categoryShelves(item.browseId)
+                tracks to shelves
+            }.onSuccess { (tracks, shelves) ->
+                openedBrowseTracks = tracks
+                openedBrowseShelves = shelves
+            }.onFailure {
+                openedBrowseError = it.message ?: "Não foi possível abrir esta página."
+            }
+            openedBrowseLoading = false
+        }
+    }
+
+    fun playShelfItem(
+        item: YouTubeMusicSearchClient.ShelfItem,
+        source: List<YouTubeMusicSearchClient.ShelfItem>,
+    ) {
+        val queue = source.mapNotNull { candidate ->
+            candidate.videoId?.let { videoId ->
+                YouTubeMusicSearchClient.Track(
+                    videoId = videoId,
+                    title = candidate.title,
+                    artist = candidate.subtitle?.substringBefore(" • ")?.takeIf { it.isNotBlank() } ?: "YouTube Music",
+                    thumbnailUrl = candidate.thumbnailUrl,
+                    durationText = null,
+                )
+            }
+        }
+        val track = queue.firstOrNull { it.videoId == item.videoId }
+        if (track != null) {
+            playTrack(track, queue)
+            return
+        }
+
+        item.browseId?.let { browseId ->
+            openBrowse(
+                YouTubeMusicSearchClient.BrowseItem(
+                    browseId = browseId,
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    thumbnailUrl = item.thumbnailUrl,
+                    kind = when {
+                        browseId.startsWith("UC") -> YouTubeMusicSearchClient.BrowseKind.ARTIST
+                        browseId.startsWith("MPRE") || browseId.startsWith("MPR") -> YouTubeMusicSearchClient.BrowseKind.ALBUM
+                        browseId.startsWith("VL") -> YouTubeMusicSearchClient.BrowseKind.PLAYLIST
+                        else -> YouTubeMusicSearchClient.BrowseKind.OTHER
+                    },
+                ),
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        discoveryLoading = true
+        exploreLoading = true
+
+        runCatching {
+            val home = YouTubeMusicSearchClient.homeShelves()
+            val releases = YouTubeMusicSearchClient.newReleaseShelves()
+            (home + releases).distinctBy { it.title }.take(14)
+        }.onSuccess {
+            discoveryShelves = it
+        }.onFailure {
+            discoveryError = it.message ?: "Não foi possível carregar recomendações."
+        }
+        discoveryLoading = false
+
+        runCatching { YouTubeMusicSearchClient.moodAndGenres() }
+            .onSuccess { exploreSections = it }
+            .onFailure { exploreError = it.message ?: "Não foi possível carregar o Explorar." }
+        exploreLoading = false
     }
 
     LaunchedEffect(player) {
