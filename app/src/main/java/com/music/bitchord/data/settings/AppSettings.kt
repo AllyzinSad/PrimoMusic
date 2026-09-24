@@ -283,7 +283,7 @@ object AppSettings {
     val smartFadeEnabled = MutableStateFlow(false)
 
     /** The CPU budget used by Beat This! and vocal analysis for Automix. */
-    val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.BALANCED)
+    val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.EFFICIENT)
     val skipSilence = MutableStateFlow(false)
 
     /** Requested PCM representation at the Android AudioTrack boundary. */
@@ -378,7 +378,7 @@ object AppSettings {
     val showNerdStats = MutableStateFlow(false)
 
     /** Freezes the main player's mesh gradient instead of letting it drift/crossfade. */
-    val reduceAnimation = MutableStateFlow(false)
+    val reduceAnimation = MutableStateFlow(true)
 
     /** Requests a sustained high-refresh UI. Off keeps Android's automatic policy. */
     val highPerformanceMode = MutableStateFlow(false)
@@ -406,13 +406,13 @@ object AppSettings {
     val preferMusicOnly = MutableStateFlow(false)
 
     /** Drops haze blur (status bar, mini player, bottom fade, lyrics focus) for a solid-fill look. */
-    val reduceDynamicBlur = MutableStateFlow(false)
+    val reduceDynamicBlur = MutableStateFlow(true)
 
     /** Real backdrop-sampled glass (blur, lens refraction) on the floating nav bar, Android 12+ only. */
     val liquidGlass = MutableStateFlow(false)
 
     /** Blurs unfocused lyric lines, keeping the active line sharp. */
-    val lyricsBlur = MutableStateFlow(true)
+    val lyricsBlur = MutableStateFlow(false)
 
     /** Positive values delay synced lyrics; negative values bring them forward. */
     val lyricsOffsetMs = MutableStateFlow(0)
@@ -465,7 +465,7 @@ object AppSettings {
      * way — see the hero notes in
      * [NowPlayingScreen][com.music.bitchord.ui.player.NowPlayingScreen].
      */
-    val fullBleedArtwork = MutableStateFlow(true)
+    val fullBleedArtwork = MutableStateFlow(false)
 
     /**
      * Puts v1.5's backdrop back on the player: four quantised blobs drifting
@@ -534,7 +534,7 @@ object AppSettings {
      * since it sends a name and nothing else and the answer is what makes a
      * quarter of the page exist; off, the genre chart simply isn't drawn.
      */
-    val replayGenres = MutableStateFlow(true)
+    val replayGenres = MutableStateFlow(false)
 
     // ── Library ─────────────────────────────────────────────────────────────
 
