@@ -23,54 +23,44 @@ import com.music.bitchord.R
 val AccentRed = Color(0xFFFA2D48)
 
 private val DarkColors = darkColorScheme(
-    primary = Color.White,
-    onPrimary = Color.Black,
-    background = Color.Black,
-    onBackground = Color.White,
-    surface = Color(0xFF0B0D13),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF171923),
-    onSurfaceVariant = Color(0xFF8E8E93),
-    outline = Color(0xFF303646),
+    primary = Color(0xFF8B5CF6),
+    onPrimary = Color.White,
+    secondary = Color(0xFFB794F6),
+    onSecondary = Color(0xFF120B1D),
+    background = Color(0xFF07080D),
+    onBackground = Color(0xFFF8F7FC),
+    surface = Color(0xFF0D0F17),
+    onSurface = Color(0xFFF8F7FC),
+    surfaceVariant = Color(0xFF171A25),
+    onSurfaceVariant = Color(0xFFA9A6B4),
+    outline = Color(0xFF303446),
 )
 
 private val LightColors = lightColorScheme(
-    primary = Color.Black,
+    primary = Color(0xFF6D3EF2),
     onPrimary = Color.White,
-    background = Color.White,
-    onBackground = Color.Black,
-    surface = Color(0xFFF7F7F9),
-    onSurface = Color.Black,
-    surfaceVariant = Color(0xFFF2F2F7),
-    onSurfaceVariant = Color(0xFF6E6E73),
-    outline = Color(0xFFE5E5EA),
+    secondary = Color(0xFF7E57C2),
+    onSecondary = Color.White,
+    background = Color(0xFFF8F7FC),
+    onBackground = Color(0xFF111018),
+    surface = Color.White,
+    onSurface = Color(0xFF111018),
+    surfaceVariant = Color(0xFFF0EDF7),
+    onSurfaceVariant = Color(0xFF696574),
+    outline = Color(0xFFD8D3E4),
 )
 
-/**
- * SF Pro Display, the face Apple Music itself is set in. Only the weights the
- * type scale actually asks for are bundled; Compose synthesises nothing, so a
- * missing weight would silently fall back to the nearest one shipped.
- */
-val SFProDisplay = FontFamily(
-    Font(R.font.sf_pro_display_regular, FontWeight.W400),
-    Font(R.font.sf_pro_display_medium, FontWeight.W500),
-    Font(R.font.sf_pro_display_semibold, FontWeight.W600),
-    Font(R.font.sf_pro_display_bold, FontWeight.W700),
-    Font(R.font.sf_pro_display_heavy, FontWeight.W800),
-)
-
-// Heavy, tight typography — the backbone of the Apple Music look.
-private val BitChordTypography = Typography(
-    displayLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 34.sp, letterSpacing = (-0.8).sp),
-    headlineLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 30.sp, letterSpacing = (-0.7).sp),
-    headlineMedium = TextStyle(fontWeight = FontWeight.W700, fontSize = 22.sp, letterSpacing = (-0.4).sp),
-    titleLarge = TextStyle(fontWeight = FontWeight.W700, fontSize = 20.sp, letterSpacing = (-0.3).sp),
-    titleMedium = TextStyle(fontWeight = FontWeight.W600, fontSize = 16.sp, letterSpacing = (-0.2).sp),
+private val KodaTypography = Typography(
+    displayLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 32.sp, letterSpacing = (-0.35).sp),
+    headlineLarge = TextStyle(fontWeight = FontWeight.W800, fontSize = 28.sp, letterSpacing = (-0.25).sp),
+    headlineMedium = TextStyle(fontWeight = FontWeight.W700, fontSize = 21.sp, letterSpacing = (-0.1).sp),
+    titleLarge = TextStyle(fontWeight = FontWeight.W700, fontSize = 20.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.W600, fontSize = 16.sp),
     bodyLarge = TextStyle(fontWeight = FontWeight.W400, fontSize = 16.sp),
     bodyMedium = TextStyle(fontWeight = FontWeight.W400, fontSize = 14.sp),
     labelMedium = TextStyle(fontWeight = FontWeight.W600, fontSize = 12.sp),
     labelSmall = TextStyle(fontWeight = FontWeight.W600, fontSize = 11.sp),
-).withFamily(SFProDisplay)
+).withFamily(FontFamily.SansSerif)
 
 /** Applies [family] to every style in the scale, so nothing is left on Roboto. */
 private fun Typography.withFamily(family: FontFamily) = Typography(
@@ -98,7 +88,7 @@ fun BitChordTheme(
 ) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = BitChordTypography,
+        typography = KodaTypography,
         content = content,
     )
 }
