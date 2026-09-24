@@ -245,9 +245,10 @@ fun main() {
 
         Window(
             onCloseRequest = {
-                // Closing Koda Music always stops audio and releases heavy resources.
-                player.close()
-                DesktopGoogleLogin.shutdown()
+                // Close is final: stop our mpv first, release login resources,
+                // then leave Compose even if one cleanup path reports an error.
+                runCatching { player.close() }
+                runCatching { DesktopGoogleLogin.shutdown() }
                 exitApplication()
             },
             title = "Koda Music",
