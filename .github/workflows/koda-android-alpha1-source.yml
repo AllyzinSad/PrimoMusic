@@ -1,0 +1,34 @@
+name: Koda Android Alpha1 Source
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - koda-android
+    paths:
+      - .github/workflows/koda-android-alpha1-source.yml
+
+permissions:
+  contents: read
+
+jobs:
+  package-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Alpha 1 source
+        uses: actions/checkout@v4
+        with:
+          ref: 07e525bd4803e5d5c92b4698c99f9b5ec9cb2d93
+          fetch-depth: 1
+
+      - name: Package source ZIP
+        run: |
+          rm -rf .git
+          zip -qr KodaMusic-Android-Alpha1-Source.zip .             -x "KodaMusic-Android-Alpha1-Source.zip"             -x ".gradle/*"             -x "**/build/*"             -x "local.properties"
+
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: KodaMusic-Android-Alpha1-Source
+          path: KodaMusic-Android-Alpha1-Source.zip
+          if-no-files-found: error
