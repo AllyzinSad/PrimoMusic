@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 echo.
 echo ==========================================
-echo   Primo Music 3.10.9 - Teste Portatil
+echo   Koda Music 3.11.0 - Teste Portatil
 echo ==========================================
 echo.
 echo Este comando monta a mesma imagem autocontida usada na versao portable
