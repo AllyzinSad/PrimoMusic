@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -591,10 +592,16 @@ private fun PrimoMusicApp(
                             .padding(22.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Header(
+                        KodaTopBar(
                             p = p,
+                            query = query,
+                            suggestions = suggestions,
+                            loading = loading,
                             gamerMode = gamerMode,
                             profile = accountProfile,
+                            onQuery = { query = it },
+                            onSearch = { search() },
+                            onSuggestion = { search(it) },
                             onTheme = {
                                 onTheme(
                                     if (theme == DesktopTheme.PURPLE) DesktopTheme.MONOCHROME
@@ -602,18 +609,6 @@ private fun PrimoMusicApp(
                                 )
                             },
                             onLogin = { loginOpen = true },
-                        )
-
-                        SearchBox(
-                            p = p,
-                            query = query,
-                            suggestions = suggestions,
-                            loading = loading,
-                            liquidGlass = liquidGlass,
-                            glassBackdrop = panelBackdrop,
-                            onQuery = { query = it },
-                            onSearch = { search() },
-                            onSuggestion = { search(it) },
                         )
 
                         val contentShape = RoundedCornerShape(22.dp)
@@ -632,13 +627,17 @@ private fun PrimoMusicApp(
                             when (section) {
                                 Section.HOME ->
                                     AccountHomeView(
-                                        p,
-                                        accountConnected,
-                                        accountLoading,
-                                        accountError,
-                                        accountHistory,
+                                        p = p,
+                                        connected = accountConnected,
+                                        loading = accountLoading,
+                                        error = accountError,
+                                        history = accountHistory,
+                                        playlists = accountPlaylists,
+                                        liked = accountLiked,
                                         onSearch = { section = Section.SEARCH },
                                         onPlay = { playTrack(it, accountHistory) },
+                                        onPlayLiked = { playTrack(it, accountLiked) },
+                                        onOpenPlaylist = ::openPlaylist,
                                         onRefresh = ::refreshAccount,
                                     )
 
