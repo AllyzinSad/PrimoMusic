@@ -69,7 +69,7 @@ internal object DesktopPreferences {
 
     private fun edit(block: Properties.() -> Unit) {
         val props = load().apply(block)
-        file.outputStream().use { props.store(it, "Primo Music desktop settings") }
+        file.outputStream().use { props.store(it, "Koda Music desktop settings") }
     }
 
     private fun load(): Properties = Properties().also { props ->
