@@ -512,60 +512,24 @@ private fun KodaMusicApp(
                         ),
                 ) {
                     if (liquidGlass) {
+                        // The reference uses a near-black canvas. Keep glass depth
+                        // subtle so the content, covers and typography remain the
+                        // visual focus instead of large decorative blobs.
                         Box(
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 110.dp, y = (-150).dp)
-                                .width(560.dp)
-                                .height(390.dp)
-                                .clip(LiquidBlobShape)
-                                .blur(92.dp)
+                                .offset(x = 70.dp, y = (-80).dp)
+                                .width(430.dp)
+                                .height(250.dp)
+                                .blur(115.dp)
                                 .background(
-                                    Brush.linearGradient(
+                                    Brush.radialGradient(
                                         listOf(
-                                            p.accent.copy(alpha = 0.38f),
-                                            Color(0xFF536DFF).copy(alpha = 0.18f),
-                                            p.accent2.copy(alpha = 0.30f),
-                                        ),
-                                    ),
-                                ),
-                        )
-
-                        Box(
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                .offset(x = (-150).dp, y = 105.dp)
-                                .width(500.dp)
-                                .height(350.dp)
-                                .clip(LiquidBlobShape)
-                                .blur(105.dp)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            Color(0xFF3A79FF).copy(alpha = 0.20f),
-                                            p.accent.copy(alpha = 0.26f),
+                                            p.accent.copy(alpha = .16f),
+                                            p.accent2.copy(alpha = .08f),
                                             Color.Transparent,
                                         ),
                                     ),
-                                ),
-                        )
-
-                        Box(
-                            Modifier
-                                .align(Alignment.TopCenter)
-                                .offset(y = (-44).dp)
-                                .fillMaxWidth(0.68f)
-                                .height(96.dp)
-                                .blur(38.dp)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            Color.Transparent,
-                                            Color.White.copy(alpha = 0.16f),
-                                            Color.Transparent,
-                                        ),
-                                    ),
-                                    RoundedCornerShape(50),
                                 ),
                         )
                     }
