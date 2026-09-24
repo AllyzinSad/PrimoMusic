@@ -456,7 +456,24 @@ private fun KodaMusicApp(
     }
 
     LaunchedEffect(accountConnected) {
-        if (accountConnected) refreshAccount()
+        if (accountConnected) {
+            refreshAccount()
+
+            // The signed-in home is personalised, so refresh discovery after a
+            // login/restore rather than keeping the guest feed for the session.
+            discoveryLoading = true
+            runCatching {
+                val home = YouTubeMusicSearchClient.homeShelves()
+                val releases = YouTubeMusicSearchClient.newReleaseShelves()
+                (home + releases).distinctBy { it.title }.take(14)
+            }.onSuccess {
+                discoveryShelves = it
+                discoveryError = null
+            }.onFailure {
+                discoveryError = it.message ?: "Não foi possível atualizar recomendações."
+            }
+            discoveryLoading = false
+        }
     }
 
     fun indexOfSelected(): Int = selected?.let { s -> playbackQueue.indexOfFirst { it.videoId == s.videoId } } ?: -1
@@ -762,7 +779,10 @@ private fun KodaMusicApp(
                                             onExplore = { section = Section.EXPLORE },
                                             onPlay = { playTrack(it, accountHistory) },
                                             onPlayLiked = { playTrack(it, accountLiked) },
-                                            onOpenPlaylist = ::openPlaylist,
+                                            onOpenPlaylist = { playlist ->
+                                                openPlaylist(playlist)
+                                                section = Section.PLAYLISTS
+                                            },
                                             onShelfItem = { item, source -> playShelfItem(item, source) },
                                             onRefresh = ::refreshAccount,
                                         )
