@@ -16,6 +16,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
 
@@ -143,6 +144,16 @@ class DesktopAudioPlayer(
     var onEnd: (() -> Unit)? = null
 
     private val generation = AtomicLong(0L)
+    private val closed = AtomicBoolean(false)
+    private val shutdownHook = Thread(
+        { close() },
+        "KodaMusic-player-shutdown",
+    ).apply { isDaemon = false }
+
+    init {
+        Runtime.getRuntime().addShutdownHook(shutdownHook)
+    }
+
     private val launchSerial = AtomicLong(0L)
     private val volumeGeneration = AtomicLong(0L)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -494,6 +505,10 @@ class DesktopAudioPlayer(
     }
 
     fun close() {
+        if (!closed.compareAndSet(false, true)) {
+            return
+        }
+
         generation.incrementAndGet()
 
         activePlayJob?.cancel()
