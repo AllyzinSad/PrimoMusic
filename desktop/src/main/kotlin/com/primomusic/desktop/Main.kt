@@ -331,7 +331,6 @@ private fun PrimoMusicApp(
     var fullPlayerOpen by remember { mutableStateOf(false) }
     var lyricsVisible by remember { mutableStateOf(false) }
     val favorites = remember { mutableStateListOf<String>() }
-    val player = remember { DesktopAudioPlayer() }
     val scope = rememberCoroutineScope()
 
     fun search(value: String = query) {
@@ -966,17 +965,12 @@ private fun NavButton(p: Palette, item: Section, selected: Boolean, onClick: () 
 
 @Composable
 private fun Brand(p: Palette) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-        Image(
-            painter = painterResource("branding/p-music-icon.png"),
-            contentDescription = "Koda Music",
-            modifier = Modifier.size(46.dp),
-        )
-        Column {
-            Text("KODA", color = p.text, fontWeight = FontWeight.Black, fontSize = 17.sp, letterSpacing = 1.4.sp)
-            Text("Koda Music", color = p.muted, fontSize = 10.sp)
-        }
-    }
+    Image(
+        painter = painterResource("branding/p-music-logo.png"),
+        contentDescription = "Koda Music",
+        modifier = Modifier.width(158.dp).height(46.dp),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 @Composable
@@ -1784,7 +1778,7 @@ private fun FullPlayerScreen(
                                 verticalArrangement = Arrangement.Center,
                             ) {
                                 Text(
-                                    "PRIMO MUSIC",
+                                    "KODA MUSIC",
                                     color = p.accent,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
