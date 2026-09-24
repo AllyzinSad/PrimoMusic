@@ -2005,24 +2005,273 @@ private fun AccountHomeView(
     loading: Boolean,
     error: String?,
     history: List<YouTubeMusicSearchClient.Track>,
+    playlists: List<YouTubeMusicSearchClient.Playlist>,
+    liked: List<YouTubeMusicSearchClient.Track>,
     onSearch: () -> Unit,
     onPlay: (YouTubeMusicSearchClient.Track) -> Unit,
+    onPlayLiked: (YouTubeMusicSearchClient.Track) -> Unit,
+    onOpenPlaylist: (YouTubeMusicSearchClient.Playlist) -> Unit,
     onRefresh: () -> Unit,
 ) {
-    if (!connected) {
-        HomeView(p, onSearch)
-        return
-    }
-    Card(modifier = Modifier.fillMaxSize(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = p.surface), border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f))) {
-        Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column { Text("Ouvir de novo", color = p.text, fontSize = 22.sp, fontWeight = FontWeight.Bold); Text("Histórico real da sua conta do YouTube Music", color = p.muted, fontSize = 12.sp) }
-                OutlinedButton(onClick = onRefresh, enabled = !loading, border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)), shape = RoundedCornerShape(12.dp)) { Text(if (loading) "Sincronizando…" else "Atualizar", color = p.text) }
+    val heroTrack = history.firstOrNull() ?: liked.firstOrNull()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth().height(182.dp),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF090A0F)),
+                border = BorderStroke(1.dp, p.border.copy(alpha = .62f)),
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    heroTrack?.thumbnailUrl?.let { art ->
+                        AsyncImage(
+                            model = highResolutionThumbnailUrl(art),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = .34f,
+                        )
+                    }
+
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xFF08090D).copy(alpha = .98f),
+                                        Color(0xFF0C0D14).copy(alpha = .78f),
+                                        p.accent2.copy(alpha = .22f),
+                                    ),
+                                ),
+                            ),
+                    )
+
+                    Column(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(horizontal = 26.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                "Ouvir ",
+                                color = p.text,
+                                fontSize = 30.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                            Text(
+                                "agora",
+                                color = p.accent,
+                                fontSize = 30.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                        }
+                        Text(
+                            "Sua trilha sonora para jogar, focar ou relaxar.",
+                            color = p.text.copy(alpha = .74f),
+                            fontSize = 13.sp,
+                        )
+                        Button(
+                            onClick = {
+                                if (heroTrack != null) onPlay(heroTrack) else onSearch()
+                            },
+                            shape = RoundedCornerShape(13.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = p.accent),
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, null, tint = Color.White)
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (heroTrack != null) "Reproduzir mix" else "Buscar música", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (connected) {
+                        OutlinedButton(
+                            onClick = onRefresh,
+                            enabled = !loading,
+                            modifier = Modifier.align(Alignment.TopEnd).padding(14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .16f)),
+                        ) {
+                            Text(if (loading) "Sincronizando…" else "Atualizar", color = Color.White, fontSize = 11.sp)
+                        }
+                    }
+                }
             }
-            error?.let { Text(it, color = Color(0xFFFF6B6B), fontSize = 12.sp) }
-            if (loading && history.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = p.accent) }
-            else if (history.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nenhum histórico foi retornado por esta sessão.", color = p.muted) }
-            else LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) { items(history, key = { it.videoId }) { TrackRow(p, it, false) { onPlay(it) } } }
+        }
+
+        error?.let { message ->
+            item {
+                Text(message, color = Color(0xFFFF6B6B), fontSize = 12.sp)
+            }
+        }
+
+        item {
+            KodaSectionTitle(p, "Tocadas recentemente")
+            Spacer(Modifier.height(8.dp))
+            if (history.isEmpty()) {
+                KodaEmptyStrip(
+                    p = p,
+                    text = if (connected) "Seu histórico aparecerá aqui." else "Entre na sua conta para carregar seu histórico.",
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(history.take(8), key = { it.videoId }) { track ->
+                        KodaTrackCard(p, track) { onPlay(track) }
+                    }
+                }
+            }
+        }
+
+        item {
+            KodaSectionTitle(p, "Playlists para você")
+            Spacer(Modifier.height(8.dp))
+            if (playlists.isEmpty()) {
+                KodaEmptyStrip(
+                    p = p,
+                    text = if (connected) "Suas playlists aparecerão aqui." else "Conecte sua conta para carregar playlists.",
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(playlists.take(7), key = { it.playlistId }) { playlist ->
+                        KodaPlaylistCard(p, playlist) { onOpenPlaylist(playlist) }
+                    }
+                }
+            }
+        }
+
+        item {
+            KodaSectionTitle(p, "Músicas curtidas")
+            Spacer(Modifier.height(8.dp))
+            if (liked.isEmpty()) {
+                KodaEmptyStrip(
+                    p = p,
+                    text = if (connected) "Suas músicas curtidas aparecerão aqui." else "Conecte sua conta para personalizar esta área.",
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(liked.take(8), key = { it.videoId }) { track ->
+                        KodaTrackCard(p, track) { onPlayLiked(track) }
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(112.dp))
+        }
+    }
+}
+
+@Composable
+private fun KodaSectionTitle(
+    p: Palette,
+    title: String,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, color = p.text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text("Ver tudo  ›", color = p.muted, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun KodaTrackCard(
+    p: Palette,
+    track: YouTubeMusicSearchClient.Track,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.width(142.dp).clickable(onClick = onClick),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Card(
+            modifier = Modifier.size(142.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = p.surfaceAlt),
+            border = BorderStroke(1.dp, p.border.copy(alpha = .42f)),
+        ) {
+            Cover(track.thumbnailUrl, track.title, p, 142.dp)
+        }
+        Text(
+            track.title,
+            color = p.text,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            track.artist,
+            color = p.muted,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun KodaPlaylistCard(
+    p: Palette,
+    playlist: YouTubeMusicSearchClient.Playlist,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.width(174.dp).height(82.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(13.dp),
+        colors = CardDefaults.cardColors(containerColor = p.surfaceAlt),
+        border = BorderStroke(1.dp, p.border.copy(alpha = .45f)),
+    ) {
+        Row(
+            Modifier.fillMaxSize().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Cover(playlist.thumbnailUrl, playlist.title, p, 54.dp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    playlist.title,
+                    color = p.text,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                playlist.subtitle?.let {
+                    Text(
+                        it,
+                        color = p.muted,
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KodaEmptyStrip(
+    p: Palette,
+    text: String,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().height(72.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = p.surface.copy(alpha = .75f)),
+        border = BorderStroke(1.dp, p.border.copy(alpha = .36f)),
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+            Text(text, color = p.muted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp))
         }
     }
 }
