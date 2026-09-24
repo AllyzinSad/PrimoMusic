@@ -52,6 +52,9 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
@@ -2695,7 +2698,7 @@ private fun KodaThemeCard(
     onClick: () -> Unit,
 ) {
     Card(
-        modifier = Modifier.weight(1f).height(72.dp).clickable(onClick = onClick),
+        modifier = Modifier.width(160.dp).height(72.dp).clickable(onClick = onClick),
         shape = RoundedCornerShape(13.dp),
         colors = CardDefaults.cardColors(containerColor = p.surface),
         border = BorderStroke(1.dp, if (selected) p.accent else p.border.copy(alpha = .5f)),
