@@ -592,7 +592,7 @@ private fun PrimoMusicApp(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .padding(22.dp),
+                            .padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         KodaTopBar(
@@ -736,7 +736,7 @@ private fun PrimoMusicApp(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .padding(
-                            start = 232.dp,
+                            start = 208.dp,
                             end = 22.dp,
                             bottom = 22.dp,
                         ),
@@ -919,19 +919,19 @@ private fun Sidebar(
     onSection: (Section) -> Unit,
     onLogin: () -> Unit,
 ) {
-    val sidebarShape = RoundedCornerShape(0.dp, 24.dp, 24.dp, 0.dp)
+    val sidebarShape = RoundedCornerShape(0.dp, 18.dp, 18.dp, 0.dp)
     Column(
-        Modifier.width(210.dp).fillMaxHeight()
+        Modifier.width(190.dp).fillMaxHeight()
             .liquidGlassSurface(liquidGlass, glassBackdrop, sidebarShape, p.sidebar)
             .then(if (liquidGlass) Modifier else Modifier.background(Brush.verticalGradient(listOf(p.sidebar, p.surface))))
             .border(1.dp, p.border.copy(alpha = 0.70f), sidebarShape)
-            .padding(16.dp),
+            .padding(14.dp),
     ) {
         Brand(p)
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         Section.entries.filter { it != Section.SETTINGS }.forEach { item ->
             NavButton(p, item, section == item) { onSection(item) }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
         }
         Spacer(Modifier.weight(1f))
         NavButton(p, Section.SETTINGS, section == Section.SETTINGS) { onSection(Section.SETTINGS) }
@@ -954,14 +954,14 @@ private fun Sidebar(
 @Composable
 private fun NavButton(p: Palette, item: Section, selected: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-            .background(if (selected) p.accent.copy(alpha = 0.16f) else Color.Transparent)
-            .clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(if (selected) p.accent.copy(alpha = 0.18f) else Color.Transparent)
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(11.dp),
     ) {
-        Icon(item.icon, item.label, tint = if (selected) p.accent else p.muted, modifier = Modifier.size(20.dp))
-        Text(item.label, color = if (selected) p.text else p.muted, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, fontSize = 13.sp)
+        Icon(item.icon, item.label, tint = if (selected) p.accent else p.muted, modifier = Modifier.size(18.dp))
+        Text(item.label, color = if (selected) p.text else p.muted, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, fontSize = 12.sp)
     }
 }
 
@@ -970,7 +970,7 @@ private fun Brand(p: Palette) {
     Image(
         painter = painterResource("branding/p-music-logo.png"),
         contentDescription = "Koda Music",
-        modifier = Modifier.width(158.dp).height(46.dp),
+        modifier = Modifier.width(150.dp).height(44.dp),
         contentScale = ContentScale.Fit,
     )
 }
