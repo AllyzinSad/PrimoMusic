@@ -973,93 +973,105 @@ private fun Brand(p: Palette) {
 }
 
 @Composable
-private fun Header(
-    p: Palette,
-    gamerMode: Boolean,
-    profile: YouTubeMusicSearchClient.AccountProfile?,
-    onTheme: () -> Unit,
-    onLogin: () -> Unit,
-) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Column {
-            Text("Koda Music", color = p.text, fontSize = 27.sp, fontWeight = FontWeight.Black)
-            Text("Sua música no Windows", color = p.muted, fontSize = 12.sp)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (gamerMode) {
-                Surface(
-                    color = p.surfaceAlt,
-                    shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, p.border.copy(alpha = .7f)),
-                ) {
-                    Text("🎮  Modo Gamer", color = p.text, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
-                }
-            }
-            IconButton(onClick = onTheme) { Icon(Icons.Filled.DarkMode, "Alternar tema", tint = p.text) }
-            IconButton(onClick = onLogin) {
-                if (!profile?.thumbnailUrl.isNullOrBlank()) AsyncImage(model = profile?.thumbnailUrl, contentDescription = "Conta", modifier = Modifier.size(28.dp).clip(CircleShape), contentScale = ContentScale.Crop)
-                else Icon(Icons.Filled.AccountCircle, "Conta", tint = p.text)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchBox(
+private fun KodaTopBar(
     p: Palette,
     query: String,
     suggestions: List<String>,
     loading: Boolean,
-    liquidGlass: Boolean,
-    glassBackdrop: Backdrop,
+    gamerMode: Boolean,
+    profile: YouTubeMusicSearchClient.AccountProfile?,
     onQuery: (String) -> Unit,
     onSearch: () -> Unit,
     onSuggestion: (String) -> Unit,
+    onTheme: () -> Unit,
+    onLogin: () -> Unit,
 ) {
-    val searchShape = RoundedCornerShape(18.dp)
-    Box(
-        Modifier.fillMaxWidth()
-            .liquidGlassSurface(liquidGlass, glassBackdrop, searchShape, p.surface)
-            .clip(searchShape),
-    ) {
-        Column {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().height(52.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             TextField(
                 value = query,
                 onValueChange = onQuery,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = p.muted) },
                 trailingIcon = {
                     IconButton(onClick = onSearch, enabled = query.isNotBlank() && !loading) {
-                        if (loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = p.accent)
-                        else Icon(Icons.Filled.Search, "Pesquisar", tint = p.accent)
+                        if (loading) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = p.accent)
+                        } else {
+                            Icon(Icons.Filled.Search, "Pesquisar", tint = p.text)
+                        }
                     }
                 },
-                placeholder = { Text("Pesquisar músicas, artistas e álbuns...", color = p.muted) },
-                shape = RoundedCornerShape(18.dp),
+                placeholder = { Text("Buscar músicas, artistas, álbuns...", color = p.muted) },
+                shape = RoundedCornerShape(15.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = if (liquidGlass) Color.Transparent else p.surface,
-                    unfocusedContainerColor = if (liquidGlass) Color.Transparent else p.surface,
-                    focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = p.text, unfocusedTextColor = p.text,
+                    focusedContainerColor = p.surface,
+                    unfocusedContainerColor = p.surface,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = p.text,
+                    unfocusedTextColor = p.text,
                 ),
             )
-            if (suggestions.isNotEmpty() && query.length >= 2) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = p.surface),
-                    border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
+
+            if (gamerMode) {
+                Surface(
+                    color = p.surface,
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, p.accent.copy(alpha = .55f)),
                 ) {
-                    Column(Modifier.padding(vertical = 6.dp)) {
-                        suggestions.take(6).forEach { s ->
-                            Row(
-                                Modifier.fillMaxWidth().clickable { onSuggestion(s) }.padding(horizontal = 14.dp, vertical = 9.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Filled.Search, null, tint = p.muted, modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(10.dp)); Text(s, color = p.text, fontSize = 13.sp)
-                            }
+                    Text(
+                        "🎮  Modo Gamer",
+                        color = p.text,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
+                    )
+                }
+            }
+
+            IconButton(onClick = onTheme) {
+                Icon(Icons.Filled.DarkMode, "Alternar tema", tint = p.text)
+            }
+
+            IconButton(onClick = onLogin) {
+                if (!profile?.thumbnailUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = profile?.thumbnailUrl,
+                        contentDescription = "Conta",
+                        modifier = Modifier.size(32.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(Icons.Filled.AccountCircle, "Conta", tint = p.text, modifier = Modifier.size(28.dp))
+                }
+            }
+        }
+
+        if (suggestions.isNotEmpty() && query.length >= 2) {
+            Card(
+                modifier = Modifier.fillMaxWidth(0.72f).padding(top = 6.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = p.surface),
+                border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
+            ) {
+                Column(Modifier.padding(vertical = 5.dp)) {
+                    suggestions.take(5).forEach { suggestion ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onSuggestion(suggestion) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Filled.Search, null, tint = p.muted, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(suggestion, color = p.text, fontSize = 12.sp)
                         }
                     }
                 }
