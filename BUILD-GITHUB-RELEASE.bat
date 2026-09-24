@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo.
 echo ==========================================
-echo   Primo Music 3.10.9 - GitHub Release
+echo   Koda Music 3.11.0 - GitHub Release
 echo ==========================================
 echo.
 echo Etapa 1/2: gerando Portable validado...
