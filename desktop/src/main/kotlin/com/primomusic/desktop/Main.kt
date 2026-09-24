@@ -810,6 +810,7 @@ private fun PrimoMusicApp(
                         },
                         onExpand = {
                             if (selected != null) {
+                                lyricsVisible = true
                                 fullPlayerOpen = true
                                 onFullscreen(true)
                             }
