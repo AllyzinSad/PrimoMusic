@@ -8,6 +8,6 @@ package com.primomusic.core
  * be migrated here incrementally after each build is proven stable.
  */
 object PrimoMusicCore {
-    const val APP_NAME = "Primo Music"
+    const val APP_NAME = "Koda Music"
     const val DESKTOP_STAGE = "Desktop foundation"
 }
