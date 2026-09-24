@@ -1744,7 +1744,7 @@ private fun KodaSearchView(
         }
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            items(YouTubeMusicSearchClient.SearchFilter.entries) { option ->
+            items(YouTubeMusicSearchClient.SearchFilter.entries.toList()) { option ->
                 val selected = option == filter
                 Surface(
                     modifier = Modifier.clickable { onFilter(option) },
@@ -3892,7 +3892,7 @@ private fun SettingsView(
                     }
 
                     SettingsPanel.AUDIO -> {
-                        items(AudioQuality.entries) { option ->
+                        items(AudioQuality.entries.toList()) { option ->
                             val selected = quality == option
                             Card(
                                 modifier = Modifier
