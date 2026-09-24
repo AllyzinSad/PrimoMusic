@@ -225,6 +225,18 @@ private enum class Section(val label: String, val icon: ImageVector) {
     SETTINGS("Configurações", Icons.Filled.Settings),
 }
 
+private enum class SettingsPanel(
+    val label: String,
+    val icon: ImageVector,
+) {
+    GENERAL("Geral", Icons.Filled.Settings),
+    APPEARANCE("Aparência", Icons.Filled.DarkMode),
+    AUDIO("Áudio", Icons.Filled.VolumeUp),
+    PERFORMANCE("Desempenho", Icons.Filled.Speed),
+    SHORTCUTS("Atalhos", Icons.Filled.Keyboard),
+    ADVANCED("Avançado", Icons.Filled.Tune),
+}
+
 fun main() {
     application {
         val windowState = rememberWindowState(width = 1600.dp, height = 900.dp)
@@ -3767,6 +3779,8 @@ private fun SettingsView(
     quality: AudioQuality,
     onQuality: (AudioQuality) -> Unit,
 ) {
+    var panel by remember { mutableStateOf(SettingsPanel.GENERAL) }
+
     Card(
         modifier = Modifier.fillMaxSize(),
         shape = RoundedCornerShape(20.dp),
@@ -3776,11 +3790,11 @@ private fun SettingsView(
         Row(Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .width(154.dp)
+                    .width(164.dp)
                     .fillMaxHeight()
                     .background(Color(0xFF0C0D12))
                     .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     "Configurações",
@@ -3790,42 +3804,62 @@ private fun SettingsView(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                 )
 
-                KodaSettingsNavItem(p, "Geral", Icons.Filled.Settings, true)
-                KodaSettingsNavItem(p, "Aparência", Icons.Filled.DarkMode, false)
-                KodaSettingsNavItem(p, "Áudio", Icons.Filled.VolumeUp, false)
-                KodaSettingsNavItem(p, "Desempenho", Icons.Filled.Speed, false)
-                KodaSettingsNavItem(p, "Atalhos", Icons.Filled.Keyboard, false)
-                KodaSettingsNavItem(p, "Avançado", Icons.Filled.Tune, false)
+                SettingsPanel.entries.forEach { option ->
+                    KodaSettingsNavItem(
+                        p = p,
+                        label = option.label,
+                        icon = option.icon,
+                        selected = panel == option,
+                        onClick = { panel = option },
+                    )
+                }
             }
 
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(18.dp),
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
-                    Text("Geral", color = p.text, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    Text(panel.label, color = p.text, fontSize = 23.sp, fontWeight = FontWeight.Black)
                     Text(
-                        "Personalize a experiência do Koda Music sem sacrificar desempenho.",
+                        when (panel) {
+                            SettingsPanel.GENERAL -> "Comportamento principal do Koda Music."
+                            SettingsPanel.APPEARANCE -> "Identidade visual bonita sem transformar efeitos em desperdício de GPU."
+                            SettingsPanel.AUDIO -> "Qualidade do streaming e comportamento do motor de áudio."
+                            SettingsPanel.PERFORMANCE -> "Controles para reduzir custo visual enquanto você joga."
+                            SettingsPanel.SHORTCUTS -> "Atalhos de teclado e controles multimídia do Windows."
+                            SettingsPanel.ADVANCED -> "Informações técnicas e regras de encerramento do aplicativo."
+                        },
                         color = p.muted,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                     )
                 }
 
-                item {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1.15f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text("Aparência", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                when (panel) {
+                    SettingsPanel.GENERAL -> {
+                        item {
+                            KodaSettingsInfoCard(
+                                p = p,
+                                title = "Koda Music 3.11.0",
+                                text = "Nova interface desktop, descoberta, biblioteca e player reorganizados sobre o mecanismo de reprodução já existente.",
+                            )
+                        }
+                        item {
+                            KodaSettingsInfoCard(
+                                p = p,
+                                title = "Conta e biblioteca",
+                                text = "A conta do YouTube Music alimenta histórico, curtidas, playlists e recomendações sem misturar essa lógica com a interface.",
+                            )
+                        }
+                    }
 
+                    SettingsPanel.APPEARANCE -> {
+                        item {
+                            Text("Tema", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 KodaThemeCard(
                                     p = p,
@@ -3840,31 +3874,107 @@ private fun SettingsView(
                                     onClick = { onTheme(DesktopTheme.PURPLE) },
                                 )
                             }
-
-                            Text("Efeitos e interface", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-
+                        }
+                        item {
                             KodaSettingToggle(
                                 p = p,
                                 title = "Liquid Glass",
                                 subtitle = if (gamerMode) {
                                     "Desativado temporariamente pelo Modo Gamer."
                                 } else {
-                                    "Refração e transparência sutis na interface."
+                                    "Refração e transparência sutis. Desligado por padrão para priorizar desempenho."
                                 },
                                 checked = liquidGlass && !gamerMode,
                                 enabled = !gamerMode,
                                 onChange = onLiquidGlass,
                             )
+                        }
+                    }
 
+                    SettingsPanel.AUDIO -> {
+                        items(AudioQuality.entries) { option ->
+                            val selected = quality == option
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onQuality(option) },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (selected) p.surfaceAlt else p.surface,
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (selected) p.accent else p.border.copy(alpha = .42f),
+                                ),
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(option.label, color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text(
+                                            when (option) {
+                                                AudioQuality.AUTO -> "Escolha automática conforme o stream disponível"
+                                                AudioQuality.HIGH -> "Prioriza a melhor qualidade disponível"
+                                                AudioQuality.BALANCED -> "Equilíbrio entre qualidade e consumo"
+                                                AudioQuality.DATA_SAVER -> "Reduz uso de dados quando possível"
+                                            },
+                                            color = p.muted,
+                                            fontSize = 9.sp,
+                                        )
+                                    }
+                                    Surface(
+                                        modifier = Modifier.size(17.dp),
+                                        color = if (selected) p.accent else Color.Transparent,
+                                        shape = CircleShape,
+                                        border = BorderStroke(1.dp, if (selected) p.accent else p.muted),
+                                    ) {}
+                                }
+                            }
+                        }
+                        item {
+                            KodaSettingsInfoCard(
+                                p = p,
+                                title = "Motor de reprodução",
+                                text = "Innertube direto → NewPipe local como fallback → mpv. O Koda não usa yt-dlp na reprodução normal.",
+                            )
+                        }
+                    }
+
+                    SettingsPanel.PERFORMANCE -> {
+                        item {
                             KodaSettingToggle(
                                 p = p,
                                 title = "Modo Gamer",
-                                subtitle = "Reduz efeitos visuais e a frequência de atualização da interface.",
+                                subtitle = "Mantém a qualidade de áudio escolhida e reduz efeitos, frequência de atualização visual e trabalho não essencial.",
                                 checked = gamerMode,
                                 enabled = true,
                                 onChange = onGamerMode,
                             )
+                        }
+                        item {
+                            KodaSettingsInfoCard(
+                                p = p,
+                                title = "Bonito sem pesar",
+                                text = "Listas são carregadas de forma lazy, o Liquid Glass é opcional e a interface evita animações permanentes. O objetivo é parecer premium sem competir com o jogo por recursos.",
+                            )
+                        }
+                    }
 
+                    SettingsPanel.SHORTCUTS -> {
+                        item {
+                            KodaSettingsInfoCard(
+                                p = p,
+                                title = "Controles multimídia",
+                                text = "A integração dedicada com teclas de mídia e controles do Windows está planejada para a etapa seguinte. Esta tela não finge atalhos que ainda não foram implementados.",
+                            )
+                        }
+                    }
+
+                    SettingsPanel.ADVANCED -> {
+                        item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(14.dp),
@@ -3877,9 +3987,9 @@ private fun SettingsView(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
                                     Column(Modifier.weight(1f)) {
-                                        Text("Comportamento do aplicativo", color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("Encerramento obrigatório", color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         Text(
-                                            "Ao fechar o Koda Music, o áudio, o mpv e os recursos de login são encerrados.",
+                                            "Fechar o Koda Music encerra o áudio, o processo mpv criado pelo Koda e os recursos de login.",
                                             color = p.muted,
                                             fontSize = 10.sp,
                                         )
@@ -3890,72 +4000,27 @@ private fun SettingsView(
                                         border = BorderStroke(1.dp, p.accent.copy(alpha = .38f)),
                                     ) {
                                         Text(
-                                            "Obrigatório",
+                                            "SEMPRE ATIVO",
                                             color = p.accent,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Black,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                         )
                                     }
                                 }
                             }
                         }
-
-                        Column(
-                            modifier = Modifier.weight(.85f),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Text("Qualidade de áudio", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-
-                            AudioQuality.entries.forEach { option ->
-                                val selected = quality == option
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onQuality(option) },
-                                    shape = RoundedCornerShape(13.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (selected) p.surfaceAlt else p.surface,
-                                    ),
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (selected) p.accent else p.border.copy(alpha = .42f),
-                                    ),
-                                ) {
-                                    Row(
-                                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text(option.label, color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                            Text(
-                                                when (option) {
-                                                    AudioQuality.AUTO -> "Escolha automática"
-                                                    AudioQuality.HIGH -> "Melhor qualidade"
-                                                    AudioQuality.BALANCED -> "Bom equilíbrio"
-                                                    AudioQuality.DATA_SAVER -> "Menor uso de dados"
-                                                },
-                                                color = p.muted,
-                                                fontSize = 9.sp,
-                                            )
-                                        }
-                                        Surface(
-                                            modifier = Modifier.size(16.dp),
-                                            color = if (selected) p.accent else Color.Transparent,
-                                            shape = CircleShape,
-                                            border = BorderStroke(1.dp, if (selected) p.accent else p.muted),
-                                        ) {}
-                                    }
-                                }
-                            }
+                        item {
+                            KodaSettingsInfoCard(
+                                p = p,
+                                title = "Arquitetura",
+                                text = "A interface permanece separada do player, da conta e da resolução de streams para que o visual possa evoluir sem reabrir bugs do mecanismo.",
+                            )
                         }
                     }
                 }
 
-                item {
-                    Spacer(Modifier.height(100.dp))
-                }
+                item { Spacer(Modifier.height(100.dp)) }
             }
         }
     }
@@ -3967,18 +4032,47 @@ private fun KodaSettingsNavItem(
     label: String,
     icon: ImageVector,
     selected: Boolean,
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(11.dp))
             .background(if (selected) p.accent.copy(alpha = .14f) else Color.Transparent)
+            .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = if (selected) p.accent else p.muted, modifier = Modifier.size(17.dp))
         Spacer(Modifier.width(9.dp))
-        Text(label, color = if (selected) p.text else p.muted, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+        Text(
+            label,
+            color = if (selected) p.text else p.muted,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        )
+    }
+}
+
+@Composable
+private fun KodaSettingsInfoCard(
+    p: Palette,
+    title: String,
+    text: String,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = p.surface),
+        border = BorderStroke(1.dp, p.border.copy(alpha = .36f)),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(title, color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(text, color = p.muted, fontSize = 10.sp)
+        }
     }
 }
 
