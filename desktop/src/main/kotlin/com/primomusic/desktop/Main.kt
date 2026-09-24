@@ -261,7 +261,7 @@ fun main() {
                     surface = p.surface,
                 ),
             ) {
-                PrimoMusicApp(
+                KodaMusicApp(
                     p = p,
                     darkTheme = true,
                     liquidGlass = effectiveLiquidGlass,
@@ -291,7 +291,7 @@ fun main() {
 }
 
 @Composable
-private fun PrimoMusicApp(
+private fun KodaMusicApp(
     p: Palette,
     darkTheme: Boolean,
     liquidGlass: Boolean,
