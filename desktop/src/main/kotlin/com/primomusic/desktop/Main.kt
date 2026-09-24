@@ -2474,116 +2474,291 @@ private fun SettingsView(
 ) {
     Card(
         modifier = Modifier.fillMaxSize(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = p.surface),
-        border = BorderStroke(1.dp, p.border.copy(alpha = 0.75f)),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF090A0F)),
+        border = BorderStroke(1.dp, p.border.copy(alpha = .62f)),
     ) {
-        LazyColumn(
-            Modifier.fillMaxSize().padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                Text("Configurações", color = p.text, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                Text("Visual, desempenho e áudio", color = p.muted, fontSize = 12.sp)
+        Row(Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .width(154.dp)
+                    .fillMaxHeight()
+                    .background(Color(0xFF0C0D12))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Text(
+                    "Configurações",
+                    color = p.text,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                )
+
+                KodaSettingsNavItem(p, "Geral", Icons.Filled.Settings, true)
+                KodaSettingsNavItem(p, "Aparência", Icons.Filled.DarkMode, false)
+                KodaSettingsNavItem(p, "Áudio", Icons.Filled.VolumeUp, false)
+                KodaSettingsNavItem(p, "Desempenho", Icons.Filled.Speed, false)
+                KodaSettingsNavItem(p, "Atalhos", Icons.Filled.Keyboard, false)
+                KodaSettingsNavItem(p, "Avançado", Icons.Filled.Tune, false)
             }
 
-            item {
-                Text("Aparência", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf(
-                        DesktopTheme.MONOCHROME to "Preto & Branco",
-                        DesktopTheme.PURPLE to "Preto & Roxo",
-                    ).forEach { (option, label) ->
-                        OutlinedButton(
-                            onClick = { onTheme(option) },
-                            border = BorderStroke(1.dp, if (theme == option) p.accent else p.border),
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Text(label, color = if (theme == option) p.accent else p.text, fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surfaceAlt).padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("🎮 Modo Gamer", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text("Prioriza áudio e reduz efeitos visuais enquanto você joga.", color = p.muted, fontSize = 11.sp)
-                    }
-                    Switch(checked = gamerMode, onCheckedChange = onGamerMode)
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surfaceAlt).padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Liquid Glass", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text(
-                            if (gamerMode) "Desativado temporariamente pelo Modo Gamer."
-                            else "Refração e transparência premium. Opcional.",
-                            color = p.muted,
-                            fontSize = 11.sp,
-                        )
-                    }
-                    Switch(
-                        checked = liquidGlass && !gamerMode,
-                        enabled = !gamerMode,
-                        onCheckedChange = onLiquidGlass,
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                item {
+                    Text("Geral", color = p.text, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    Text(
+                        "Personalize a experiência do Koda Music sem sacrificar desempenho.",
+                        color = p.muted,
+                        fontSize = 11.sp,
                     )
                 }
-            }
 
-            item {
-                Text("Áudio", color = p.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text("Qualidade do streaming", color = p.muted, fontSize = 11.sp)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AudioQuality.entries.forEach { option ->
-                        OutlinedButton(
-                            onClick = { onQuality(option) },
-                            border = BorderStroke(1.dp, if (quality == option) p.accent else p.border),
-                            shape = RoundedCornerShape(12.dp),
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1.15f),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text(option.label, color = if (quality == option) p.accent else p.text, fontSize = 12.sp)
+                            Text("Aparência", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                KodaThemeCard(
+                                    p = p,
+                                    label = "Preto & Branco",
+                                    selected = theme == DesktopTheme.MONOCHROME,
+                                    onClick = { onTheme(DesktopTheme.MONOCHROME) },
+                                )
+                                KodaThemeCard(
+                                    p = p,
+                                    label = "Preto & Roxo",
+                                    selected = theme == DesktopTheme.PURPLE,
+                                    onClick = { onTheme(DesktopTheme.PURPLE) },
+                                )
+                            }
+
+                            Text("Efeitos e interface", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                            KodaSettingToggle(
+                                p = p,
+                                title = "Liquid Glass",
+                                subtitle = if (gamerMode) {
+                                    "Desativado temporariamente pelo Modo Gamer."
+                                } else {
+                                    "Refração e transparência sutis na interface."
+                                },
+                                checked = liquidGlass && !gamerMode,
+                                enabled = !gamerMode,
+                                onChange = onLiquidGlass,
+                            )
+
+                            KodaSettingToggle(
+                                p = p,
+                                title = "Modo Gamer",
+                                subtitle = "Reduz efeitos visuais e a frequência de atualização da interface.",
+                                checked = gamerMode,
+                                enabled = true,
+                                onChange = onGamerMode,
+                            )
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = p.surface),
+                                border = BorderStroke(1.dp, p.border.copy(alpha = .42f)),
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Comportamento do aplicativo", color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text(
+                                            "Ao fechar o Koda Music, o áudio, o mpv e os recursos de login são encerrados.",
+                                            color = p.muted,
+                                            fontSize = 10.sp,
+                                        )
+                                    }
+                                    Surface(
+                                        color = p.accent.copy(alpha = .16f),
+                                        shape = RoundedCornerShape(50),
+                                        border = BorderStroke(1.dp, p.accent.copy(alpha = .38f)),
+                                    ) {
+                                        Text(
+                                            "Obrigatório",
+                                            color = p.accent,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(.85f),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text("Qualidade de áudio", color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                            AudioQuality.entries.forEach { option ->
+                                val selected = quality == option
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onQuality(option) },
+                                    shape = RoundedCornerShape(13.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (selected) p.surfaceAlt else p.surface,
+                                    ),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (selected) p.accent else p.border.copy(alpha = .42f),
+                                    ),
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(option.label, color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Text(
+                                                when (option) {
+                                                    AudioQuality.AUTO -> "Escolha automática"
+                                                    AudioQuality.HIGH -> "Melhor qualidade"
+                                                    AudioQuality.BALANCED -> "Bom equilíbrio"
+                                                    AudioQuality.DATA_SAVER -> "Menor uso de dados"
+                                                },
+                                                color = p.muted,
+                                                fontSize = 9.sp,
+                                            )
+                                        }
+                                        Surface(
+                                            modifier = Modifier.size(16.dp),
+                                            color = if (selected) p.accent else Color.Transparent,
+                                            shape = CircleShape,
+                                            border = BorderStroke(1.dp, if (selected) p.accent else p.muted),
+                                        ) {}
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = p.surfaceAlt),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, p.border.copy(alpha = .45f)),
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Encerramento seguro", color = p.text, fontWeight = FontWeight.Bold)
-                        Text(
-                            "Fechar o Koda Music sempre encerra a música, o mpv e os recursos de login. Este comportamento é obrigatório e não pode ser desativado.",
-                            color = p.muted,
-                            fontSize = 12.sp,
-                        )
-                    }
+                item {
+                    Spacer(Modifier.height(100.dp))
                 }
             }
+        }
+    }
+}
 
-            item {
-                Text(
-                    "Streaming direto: Innertube → NewPipe local como fallback → mpv. Nenhum áudio é salvo em arquivo temporário.",
-                    color = p.muted,
-                    fontSize = 12.sp,
-                )
+@Composable
+private fun KodaSettingsNavItem(
+    p: Palette,
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (selected) p.accent.copy(alpha = .14f) else Color.Transparent)
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = if (selected) p.accent else p.muted, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(9.dp))
+        Text(label, color = if (selected) p.text else p.muted, fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+    }
+}
+
+@Composable
+private fun KodaThemeCard(
+    p: Palette,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.weight(1f).height(72.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(13.dp),
+        colors = CardDefaults.cardColors(containerColor = p.surface),
+        border = BorderStroke(1.dp, if (selected) p.accent else p.border.copy(alpha = .5f)),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .height(30.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            if (label.contains("Roxo")) {
+                                listOf(Color(0xFF090A0F), p.accent2.copy(alpha = .72f))
+                            } else {
+                                listOf(Color(0xFF070707), Color(0xFF494949))
+                            },
+                        ),
+                    ),
+            )
+            Text(
+                label,
+                color = p.text,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
+            )
+            if (selected) {
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(14.dp),
+                    color = p.accent,
+                    shape = CircleShape,
+                ) {}
             }
+        }
+    }
+}
+
+@Composable
+private fun KodaSettingToggle(
+    p: Palette,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(13.dp),
+        colors = CardDefaults.cardColors(containerColor = p.surface),
+        border = BorderStroke(1.dp, p.border.copy(alpha = .36f)),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = p.text, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(subtitle, color = p.muted, fontSize = 9.sp)
+            }
+            Switch(checked = checked, enabled = enabled, onCheckedChange = onChange)
         }
     }
 }
