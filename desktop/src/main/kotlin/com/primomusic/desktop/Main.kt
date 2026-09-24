@@ -1835,7 +1835,7 @@ private fun KodaBrowseResultRow(
         ) {
             if (!item.thumbnailUrl.isNullOrBlank()) {
                 AsyncImage(
-                    model = highResolutionThumbnailUrl(item.thumbnailUrl),
+                    model = thumbnailUrlForSize(item.thumbnailUrl, 180),
                     contentDescription = item.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
@@ -2244,7 +2244,7 @@ private fun KodaBrowseDetailView(
                 ) {
                     if (!item.thumbnailUrl.isNullOrBlank()) {
                         AsyncImage(
-                            model = highResolutionThumbnailUrl(item.thumbnailUrl),
+                            model = thumbnailUrlForSize(item.thumbnailUrl, 420),
                             contentDescription = item.title,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -2382,7 +2382,7 @@ private fun KodaShelfItemCard(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (!item.thumbnailUrl.isNullOrBlank()) {
                     AsyncImage(
-                        model = highResolutionThumbnailUrl(item.thumbnailUrl),
+                        model = thumbnailUrlForSize(item.thumbnailUrl, 320),
                         contentDescription = item.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
@@ -2473,7 +2473,10 @@ private fun TrackRow(p: Palette, track: YouTubeMusicSearchClient.Track, favorite
     }
 }
 
-private fun highResolutionThumbnailUrl(url: String?): String? {
+private fun thumbnailUrlForSize(
+    url: String?,
+    targetPx: Int,
+): String? {
     val raw = url
         ?.trim()
         ?.takeIf { it.isNotBlank() }
@@ -2500,11 +2503,15 @@ private fun highResolutionThumbnailUrl(url: String?): String? {
                 normalized
             }
 
-        return "$base=w1024-h1024-l90-rj"
+        val safe = targetPx.coerceIn(96, 1024)
+        return "$base=w$safe-h$safe-l90-rj"
     }
 
     return normalized
 }
+
+private fun highResolutionThumbnailUrl(url: String?): String? =
+    thumbnailUrlForSize(url, 1024)
 
 @Composable
 private fun Cover(url: String?, title: String?, p: Palette, size: androidx.compose.ui.unit.Dp) {
@@ -2512,10 +2519,10 @@ private fun Cover(url: String?, title: String?, p: Palette, size: androidx.compo
         Modifier.size(size).clip(RoundedCornerShape(12.dp)).background(p.surfaceAlt),
         contentAlignment = Alignment.Center,
     ) {
-        val highResUrl = highResolutionThumbnailUrl(url)
-        if (!highResUrl.isNullOrBlank()) {
+        val cardUrl = thumbnailUrlForSize(url, 320)
+        if (!cardUrl.isNullOrBlank()) {
             AsyncImage(
-                model = highResUrl,
+                model = cardUrl,
                 contentDescription = title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
