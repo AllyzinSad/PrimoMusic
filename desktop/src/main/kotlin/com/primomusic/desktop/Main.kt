@@ -548,6 +548,19 @@ private fun KodaMusicApp(
         }
     }
 
+    fun openMood(mood: YouTubeMusicSearchClient.MoodGenre) {
+        openedMood = mood
+        openedMoodShelves = emptyList()
+        openedMoodLoading = true
+        exploreError = null
+        scope.launch {
+            runCatching { YouTubeMusicSearchClient.categoryShelves(mood.browseId, mood.params) }
+                .onSuccess { openedMoodShelves = it }
+                .onFailure { exploreError = it.message ?: "Não foi possível abrir esta categoria." }
+            openedMoodLoading = false
+        }
+    }
+
     LaunchedEffect(Unit) {
         discoveryLoading = true
         exploreLoading = true
@@ -714,96 +727,181 @@ private fun KodaMusicApp(
                                     tint = p.surface,
                                 ),
                         ) {
-                            when (section) {
-                                Section.HOME ->
-                                    AccountHomeView(
-                                        p = p,
-                                        connected = accountConnected,
-                                        loading = accountLoading,
-                                        error = accountError,
-                                        history = accountHistory,
-                                        playlists = accountPlaylists,
-                                        liked = accountLiked,
-                                        onSearch = { section = Section.SEARCH },
-                                        onPlay = { playTrack(it, accountHistory) },
-                                        onPlayLiked = { playTrack(it, accountLiked) },
-                                        onOpenPlaylist = ::openPlaylist,
-                                        onRefresh = ::refreshAccount,
-                                    )
-
-                                Section.SEARCH ->
-                                    ResultsView(
-                                        p,
-                                        results,
-                                        loading,
-                                        error,
-                                        favorites,
-                                        onPlay = { playTrack(it, results) },
-                                    )
-
-                                Section.LIBRARY ->
-                                    LibraryView(
-                                        p,
-                                        accountConnected,
-                                        accountLoading,
-                                        accountError,
-                                        accountLiked,
-                                        onPlay = { playTrack(it, accountLiked) },
-                                        onRefresh = ::refreshAccount,
-                                        onLogin = { loginOpen = true },
-                                    )
-
-                                Section.PLAYLISTS ->
-                                    if (openedPlaylist != null) {
-                                        PlaylistDetailView(
+                            if (openedBrowse != null) {
+                                KodaBrowseDetailView(
+                                    p = p,
+                                    item = openedBrowse!!,
+                                    loading = openedBrowseLoading,
+                                    error = openedBrowseError,
+                                    tracks = openedBrowseTracks,
+                                    shelves = openedBrowseShelves,
+                                    onBack = {
+                                        openedBrowse = null
+                                        openedBrowseTracks = emptyList()
+                                        openedBrowseShelves = emptyList()
+                                        openedBrowseError = null
+                                    },
+                                    onPlay = { playTrack(it, openedBrowseTracks) },
+                                    onShelfItem = { item, source -> playShelfItem(item, source) },
+                                )
+                            } else {
+                                when (section) {
+                                    Section.HOME ->
+                                        KodaHomeView(
                                             p = p,
-                                            playlist = openedPlaylist!!,
-                                            loading = openedPlaylistLoading,
+                                            connected = accountConnected,
+                                            loading = accountLoading,
                                             error = accountError,
-                                            tracks = openedPlaylistTracks,
-                                            onBack = {
-                                                openedPlaylist = null
-                                                openedPlaylistTracks = emptyList()
-                                            },
-                                            onPlay = { playTrack(it, openedPlaylistTracks) },
-                                        )
-                                    } else {
-                                        PlaylistsView(
-                                            p,
-                                            accountConnected,
-                                            accountLoading,
-                                            accountError,
-                                            accountPlaylists,
+                                            history = accountHistory,
+                                            playlists = accountPlaylists,
+                                            liked = accountLiked,
+                                            discoveryShelves = discoveryShelves,
+                                            discoveryLoading = discoveryLoading,
+                                            discoveryError = discoveryError,
+                                            onSearch = { section = Section.SEARCH },
+                                            onExplore = { section = Section.EXPLORE },
+                                            onPlay = { playTrack(it, accountHistory) },
+                                            onPlayLiked = { playTrack(it, accountLiked) },
+                                            onOpenPlaylist = ::openPlaylist,
+                                            onShelfItem = { item, source -> playShelfItem(item, source) },
                                             onRefresh = ::refreshAccount,
-                                            onLogin = { loginOpen = true },
-                                            onCreate = { newPlaylistOpen = true },
-                                            onOpen = ::openPlaylist,
                                         )
-                                    }
 
-                                Section.DOWNLOADS ->
-                                    EmptyView(
-                                        p,
-                                        Icons.Filled.Download,
-                                        "Downloads",
-                                        "Downloads offline serão adicionados depois do player online estabilizar.",
-                                    )
+                                    Section.EXPLORE ->
+                                        if (openedMood != null) {
+                                            KodaMoodDetailView(
+                                                p = p,
+                                                mood = openedMood!!,
+                                                loading = openedMoodLoading,
+                                                error = exploreError,
+                                                shelves = openedMoodShelves,
+                                                onBack = {
+                                                    openedMood = null
+                                                    openedMoodShelves = emptyList()
+                                                    exploreError = null
+                                                },
+                                                onShelfItem = { item, source -> playShelfItem(item, source) },
+                                            )
+                                        } else {
+                                            KodaExploreView(
+                                                p = p,
+                                                loading = exploreLoading,
+                                                error = exploreError,
+                                                sections = exploreSections,
+                                                onOpen = ::openMood,
+                                            )
+                                        }
 
-                                Section.SETTINGS ->
-                                    SettingsView(
-                                        p = p,
-                                        theme = theme,
-                                        onTheme = onTheme,
-                                        gamerMode = gamerMode,
-                                        onGamerMode = onGamerMode,
-                                        liquidGlass = liquidGlass,
-                                        onLiquidGlass = onLiquidGlass,
-                                        quality = audioQuality,
-                                        onQuality = {
-                                            audioQuality = it
-                                            DesktopPreferences.setAudioQuality(it)
-                                        },
-                                    )
+                                    Section.SEARCH ->
+                                        KodaSearchView(
+                                            p = p,
+                                            query = query,
+                                            filter = searchFilter,
+                                            results = richResults,
+                                            loading = loading,
+                                            error = error,
+                                            favorites = favorites,
+                                            onFilter = { filter ->
+                                                searchFilter = filter
+                                                if (query.isNotBlank()) search(query, filter)
+                                            },
+                                            onPlay = { track ->
+                                                playTrack(
+                                                    track,
+                                                    richResults.mapNotNull { it.track },
+                                                )
+                                            },
+                                            onBrowse = ::openBrowse,
+                                        )
+
+                                    Section.LIBRARY ->
+                                        KodaLibraryHubView(
+                                            p = p,
+                                            connected = accountConnected,
+                                            loading = accountLoading,
+                                            history = accountHistory,
+                                            liked = accountLiked,
+                                            playlists = accountPlaylists,
+                                            onNavigate = { section = it },
+                                            onLogin = { loginOpen = true },
+                                            onRefresh = ::refreshAccount,
+                                        )
+
+                                    Section.PLAYLISTS ->
+                                        if (openedPlaylist != null) {
+                                            PlaylistDetailView(
+                                                p = p,
+                                                playlist = openedPlaylist!!,
+                                                loading = openedPlaylistLoading,
+                                                error = accountError,
+                                                tracks = openedPlaylistTracks,
+                                                onBack = {
+                                                    openedPlaylist = null
+                                                    openedPlaylistTracks = emptyList()
+                                                },
+                                                onPlay = { playTrack(it, openedPlaylistTracks) },
+                                            )
+                                        } else {
+                                            PlaylistsView(
+                                                p,
+                                                accountConnected,
+                                                accountLoading,
+                                                accountError,
+                                                accountPlaylists,
+                                                onRefresh = ::refreshAccount,
+                                                onLogin = { loginOpen = true },
+                                                onCreate = { newPlaylistOpen = true },
+                                                onOpen = ::openPlaylist,
+                                            )
+                                        }
+
+                                    Section.LIKED ->
+                                        KodaTrackCollectionView(
+                                            p = p,
+                                            title = "Músicas curtidas",
+                                            subtitle = "Sua coleção sincronizada com o YouTube Music",
+                                            tracks = accountLiked,
+                                            loading = accountLoading,
+                                            connected = accountConnected,
+                                            emptyMessage = "Suas músicas curtidas aparecerão aqui.",
+                                            onPlay = { playTrack(it, accountLiked) },
+                                            onLogin = { loginOpen = true },
+                                            onRefresh = ::refreshAccount,
+                                        )
+
+                                    Section.HISTORY ->
+                                        KodaTrackCollectionView(
+                                            p = p,
+                                            title = "Histórico",
+                                            subtitle = "O que você ouviu recentemente",
+                                            tracks = accountHistory,
+                                            loading = accountLoading,
+                                            connected = accountConnected,
+                                            emptyMessage = "Seu histórico de reprodução aparecerá aqui.",
+                                            onPlay = { playTrack(it, accountHistory) },
+                                            onLogin = { loginOpen = true },
+                                            onRefresh = ::refreshAccount,
+                                        )
+
+                                    Section.DOWNLOADS ->
+                                        KodaDownloadsView(p)
+
+                                    Section.SETTINGS ->
+                                        SettingsView(
+                                            p = p,
+                                            theme = theme,
+                                            onTheme = onTheme,
+                                            gamerMode = gamerMode,
+                                            onGamerMode = onGamerMode,
+                                            liquidGlass = liquidGlass,
+                                            onLiquidGlass = onLiquidGlass,
+                                            quality = audioQuality,
+                                            onQuality = {
+                                                audioQuality = it
+                                                DesktopPreferences.setAudioQuality(it)
+                                            },
+                                        )
+                                }
                             }
                         }
                     }
