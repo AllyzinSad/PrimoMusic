@@ -2823,9 +2823,13 @@ private fun FullPlayerScreen(
             runCatching { LyricsClient.fetch(track.title, track.artist) }
                 .onSuccess { found ->
                     lyrics = found
-                    if (found == null) lyricsError = "Letra não encontrada para esta faixa."
+                    if (found == null) {
+                        lyricsError = "Letra não encontrada para esta faixa."
+                    }
                 }
-                .onFailure { lyricsError = it.message ?: "Não foi possível carregar a letra." }
+                .onFailure {
+                    lyricsError = it.message ?: "Não foi possível carregar a letra."
+                }
             lyricsLoaded = true
             lyricsLoading = false
         }
@@ -2844,9 +2848,9 @@ private fun FullPlayerScreen(
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(120.dp),
+                        .blur(86.dp),
                     contentScale = ContentScale.Crop,
-                    alpha = 0.26f,
+                    alpha = .48f,
                 )
             }
 
@@ -2854,11 +2858,11 @@ private fun FullPlayerScreen(
                 Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.verticalGradient(
+                        Brush.horizontalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.42f),
-                                Color.Black.copy(alpha = 0.66f),
-                                Color.Black.copy(alpha = 0.92f),
+                                Color.Black.copy(alpha = .88f),
+                                Color.Black.copy(alpha = .47f),
+                                Color.Black.copy(alpha = .68f),
                             ),
                         ),
                     ),
@@ -2868,12 +2872,12 @@ private fun FullPlayerScreen(
                 Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                p.accent.copy(alpha = 0.13f),
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = .18f),
                                 Color.Transparent,
+                                Color.Black.copy(alpha = .88f),
                             ),
-                            radius = 1050f,
                         ),
                     ),
             )
@@ -2881,36 +2885,20 @@ private fun FullPlayerScreen(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 34.dp, vertical = 26.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                    .padding(horizontal = 28.dp, vertical = 22.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Brand(
-                            p.copy(
-                                text = Color.White,
-                                muted = Color.White.copy(alpha = .62f),
-                            ),
-                        )
-                        Spacer(Modifier.width(14.dp))
-                        Surface(
-                            color = Color.White.copy(alpha = .06f),
-                            shape = RoundedCornerShape(50),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-                        ) {
-                            Text(
-                                "TOCANDO AGORA",
-                                color = Color.White.copy(alpha = .78f),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                            )
-                        }
-                    }
+                    Brand(
+                        p.copy(
+                            text = Color.White,
+                            muted = Color.White.copy(alpha = .64f),
+                        ),
+                    )
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2918,39 +2906,37 @@ private fun FullPlayerScreen(
                     ) {
                         OutlinedButton(
                             onClick = onLyricsToggle,
+                            shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(
                                 1.dp,
-                                if (lyricsVisible) p.accent else Color.White.copy(alpha = .18f),
+                                if (lyricsVisible) p.accent else Color.White.copy(alpha = .20f),
                             ),
-                            shape = RoundedCornerShape(14.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Article,
                                 null,
                                 tint = if (lyricsVisible) p.accent else Color.White,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(17.dp),
                             )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                if (lyricsVisible) "Ocultar letras" else "Letras",
-                                color = Color.White,
-                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text("Letras", color = Color.White, fontSize = 11.sp)
                         }
 
                         Surface(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .clickable(onClick = onClose),
-                            color = Color.White.copy(alpha = .08f),
+                            color = Color.Black.copy(alpha = .34f),
                             shape = CircleShape,
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .16f)),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     Icons.Filled.FullscreenExit,
                                     "Sair da tela cheia",
                                     tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
@@ -2960,89 +2946,138 @@ private fun FullPlayerScreen(
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 34.dp),
-                    horizontalArrangement = Arrangement.spacedBy(44.dp),
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(
-                        modifier = Modifier.width(410.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(350.dp),
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Card(
-                            modifier = Modifier.size(390.dp),
-                            shape = RoundedCornerShape(32.dp),
+                            modifier = Modifier.size(272.dp),
+                            shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF111116)),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .13f)),
                         ) {
-                            Cover(track.thumbnailUrl, track.title, p, 390.dp)
+                            if (!artwork.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = artwork,
+                                    contentDescription = track.title,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            } else {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Filled.MusicNote,
+                                        null,
+                                        tint = p.accent,
+                                        modifier = Modifier.size(58.dp),
+                                    )
+                                }
+                            }
                         }
 
-                        Spacer(Modifier.height(22.dp))
+                        Spacer(Modifier.height(18.dp))
 
                         Text(
                             track.title,
                             color = Color.White,
-                            fontSize = 32.sp,
+                            fontSize = 29.sp,
                             fontWeight = FontWeight.Black,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
 
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(5.dp))
 
                         Text(
                             track.artist,
-                            color = Color.White.copy(alpha = .62f),
-                            fontSize = 16.sp,
+                            color = Color.White.copy(alpha = .66f),
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onFavorite),
+                                color = Color.Black.copy(alpha = .32f),
+                                shape = CircleShape,
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = .14f)),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                        "Favorito",
+                                        tint = if (favorite) p.accent else Color.White,
+                                        modifier = Modifier.size(19.dp),
+                                    )
+                                }
+                            }
+
+                            state.streamInfo
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { info ->
+                                    Surface(
+                                        color = Color.Black.copy(alpha = .28f),
+                                        shape = RoundedCornerShape(50),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = .10f)),
+                                    ) {
+                                        Text(
+                                            info,
+                                            color = Color.White.copy(alpha = .58f),
+                                            fontSize = 9.sp,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        )
+                                    }
+                                }
+                        }
                     }
 
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .padding(vertical = 24.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF0D0E13).copy(alpha = .84f),
-                        ),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-                    ) {
-                        if (lyricsVisible) {
+                    if (lyricsVisible) {
+                        Card(
+                            modifier = Modifier
+                                .width(410.dp)
+                                .fillMaxHeight(.78f),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFF08090D).copy(alpha = .74f),
+                            ),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = .14f)),
+                        ) {
                             Column(
                                 Modifier
                                     .fillMaxSize()
-                                    .padding(26.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                                    .padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Column {
+                                    Text(
+                                        "Letras",
+                                        color = Color.White,
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Black,
+                                    )
+                                    lyrics?.source?.let { source ->
                                         Text(
-                                            "Letras",
-                                            color = Color.White,
-                                            fontSize = 25.sp,
-                                            fontWeight = FontWeight.Black,
-                                        )
-                                        Text(
-                                            "Acompanhe a faixa sem sair do player",
-                                            color = Color.White.copy(alpha = .52f),
-                                            fontSize = 11.sp,
-                                        )
-                                    }
-                                    lyrics?.source?.let {
-                                        Text(
-                                            it,
+                                            source,
                                             color = p.accent,
-                                            fontSize = 11.sp,
+                                            fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
                                         )
                                     }
@@ -3066,19 +3101,19 @@ private fun FullPlayerScreen(
                                             Text(
                                                 lyricsError ?: "",
                                                 color = Color.White.copy(alpha = .58f),
-                                                fontSize = 14.sp,
+                                                fontSize = 12.sp,
                                             )
                                         }
                                     }
 
                                     lyrics != null -> {
                                         LyricsBody(
-                                            p.copy(
+                                            p = p.copy(
                                                 text = Color.White,
-                                                muted = Color.White.copy(alpha = .55f),
+                                                muted = Color.White.copy(alpha = .50f),
                                             ),
-                                            lyrics!!,
-                                            state.positionMillis,
+                                            lyrics = lyrics!!,
+                                            positionMillis = state.positionMillis,
                                         )
                                     }
 
@@ -3090,63 +3125,31 @@ private fun FullPlayerScreen(
                                             Text(
                                                 "As letras aparecerão aqui.",
                                                 color = Color.White.copy(alpha = .52f),
+                                                fontSize = 12.sp,
                                             )
                                         }
                                     }
                                 }
                             }
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(34.dp),
-                                verticalArrangement = Arrangement.Center,
-                            ) {
-                                Text(
-                                    "KODA MUSIC",
-                                    color = p.accent,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (!artwork.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = artwork,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxHeight(.78f)
+                                        .fillMaxWidth(.68f)
+                                        .clip(RoundedCornerShape(26.dp)),
+                                    contentScale = ContentScale.Crop,
+                                    alpha = .26f,
                                 )
-
-                                Spacer(Modifier.height(14.dp))
-
-                                Text(
-                                    track.title,
-                                    color = Color.White,
-                                    fontSize = 42.sp,
-                                    fontWeight = FontWeight.Black,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-
-                                Spacer(Modifier.height(10.dp))
-
-                                Text(
-                                    track.artist,
-                                    color = Color.White.copy(alpha = .62f),
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-
-                                state.streamInfo
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?.let {
-                                        Spacer(Modifier.height(18.dp))
-                                        Surface(
-                                            color = Color.White.copy(alpha = .05f),
-                                            shape = RoundedCornerShape(50),
-                                        ) {
-                                            Text(
-                                                it,
-                                                color = Color.White.copy(alpha = .56f),
-                                                fontSize = 10.sp,
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                            )
-                                        }
-                                    }
                             }
                         }
                     }
@@ -3154,17 +3157,17 @@ private fun FullPlayerScreen(
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF0C0D12).copy(alpha = .94f),
+                        containerColor = Color(0xFF090A0E).copy(alpha = .86f),
                     ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = .12f)),
                 ) {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 22.dp, vertical = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(horizontal = 18.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         PlayerTimeline(
                             p = p.copy(
@@ -3173,57 +3176,59 @@ private fun FullPlayerScreen(
                             ),
                             positionMillis = state.positionMillis,
                             durationMillis = durationMillis,
-                            compact = false,
+                            compact = true,
                             onSeek = onSeek,
                         )
 
                         Row(
                             Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = onFavorite) {
-                                    Icon(
-                                        if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                        "Favorito",
-                                        tint = if (favorite) p.accent else Color.White.copy(alpha = .56f),
-                                    )
-                                }
                                 IconButton(onClick = onShuffle) {
                                     Icon(
                                         Icons.Filled.Shuffle,
                                         "Aleatório",
                                         tint = if (shuffle) p.accent else Color.White.copy(alpha = .56f),
+                                        modifier = Modifier.size(19.dp),
+                                    )
+                                }
+                                IconButton(onClick = onRepeat) {
+                                    Icon(
+                                        if (repeat) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                                        "Repetir",
+                                        tint = if (repeat) p.accent else Color.White.copy(alpha = .56f),
+                                        modifier = Modifier.size(19.dp),
                                     )
                                 }
                             }
 
                             Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 IconButton(onClick = onPrevious) {
                                     Icon(
                                         Icons.Filled.SkipPrevious,
                                         "Anterior",
                                         tint = Color.White,
-                                        modifier = Modifier.size(32.dp),
+                                        modifier = Modifier.size(27.dp),
                                     )
                                 }
 
                                 Box(
                                     Modifier
-                                        .size(62.dp)
+                                        .size(50.dp)
                                         .clip(CircleShape)
-                                        .background(p.accent)
+                                        .background(Color.White)
                                         .clickable(onClick = onToggle),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (state.state == DesktopAudioPlayer.State.RESOLVING) {
                                         CircularProgressIndicator(
-                                            Modifier.size(25.dp),
-                                            color = Color.White,
+                                            Modifier.size(20.dp),
+                                            color = p.accent,
                                             strokeWidth = 2.dp,
                                         )
                                     } else {
@@ -3234,8 +3239,8 @@ private fun FullPlayerScreen(
                                                 Icons.Filled.PlayArrow
                                             },
                                             "Play/Pause",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(34.dp),
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(28.dp),
                                         )
                                     }
                                 }
@@ -3245,37 +3250,24 @@ private fun FullPlayerScreen(
                                         Icons.Filled.SkipNext,
                                         "Próxima",
                                         tint = Color.White,
-                                        modifier = Modifier.size(32.dp),
+                                        modifier = Modifier.size(27.dp),
                                     )
                                 }
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = onRepeat) {
-                                    Icon(
-                                        if (repeat) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                                        "Repetir",
-                                        tint = if (repeat) p.accent else Color.White.copy(alpha = .56f),
-                                    )
-                                }
                                 IconButton(onClick = onMute) {
                                     Icon(
                                         if (state.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
                                         "Volume",
-                                        tint = Color.White.copy(alpha = .62f),
+                                        tint = Color.White.copy(alpha = .68f),
+                                        modifier = Modifier.size(19.dp),
                                     )
                                 }
                                 Slider(
                                     value = state.volume.toFloat(),
                                     onValueChange = onVolume,
-                                    modifier = Modifier.width(160.dp),
-                                )
-                                Text(
-                                    "${(state.volume * 100).roundToInt()}%",
-                                    color = Color.White.copy(alpha = .70f),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.width(38.dp),
+                                    modifier = Modifier.width(118.dp),
                                 )
                             }
                         }
