@@ -57,13 +57,13 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.music.bitchord"
+        applicationId = "com.kodamusic"
         // 26 keeps reach wide; real-time blur (RenderEffect) kicks in on API 31+,
         // Haze falls back to a translucent scrim below that.
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.6"
+        versionCode = 31101
+        versionName = "3.11.0-alpha1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -100,8 +100,8 @@ android {
     productFlavors {
         create("dev") {
             dimension = "env"
-            applicationId = "com.dev.bitchord"
-            resValue("string", "app_name", "BitChord Dev")
+            applicationId = "com.kodamusic.dev"
+            resValue("string", "app_name", "Koda Music Dev")
         }
         create("prod") {
             dimension = "env"
