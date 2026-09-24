@@ -101,7 +101,7 @@ android {
         create("dev") {
             dimension = "env"
             applicationId = "com.kodamusic.dev"
-            resValue("string", "app_name", "Koda Music Dev")
+            resValue("string", "app_name", "Koda Music")
         }
         create("prod") {
             dimension = "env"
