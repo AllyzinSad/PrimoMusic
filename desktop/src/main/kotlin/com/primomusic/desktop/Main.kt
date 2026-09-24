@@ -224,7 +224,7 @@ private enum class Section(val label: String, val icon: ImageVector) {
 
 fun main() {
     application {
-        val windowState = rememberWindowState(width = 1420.dp, height = 900.dp)
+        val windowState = rememberWindowState(width = 1600.dp, height = 900.dp)
         val appIcon = painterResource("branding/p-music-icon.png")
         val player = remember { DesktopAudioPlayer() }
     
