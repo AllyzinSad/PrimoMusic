@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 260">
+  <rect width="980" height="260" fill="#ffffff"/>
+  <g transform="translate(35 25) scale(.41)">
+    <rect width="512" height="512" rx="104" fill="#0c0c0c"/>
+    <g fill="#ffffff">
+      <rect x="110" y="82" width="88" height="348" rx="22"/>
+      <path d="M178 252 L326 82 H430 L248 274 Z"/>
+      <path d="M178 258 L278 226 L430 430 H326 Z"/>
+    </g>
+    <path d="M166 210 L166 322 L264 266 Z" fill="#0c0c0c"/>
+    <path d="M132 404 L394 176" stroke="#0c0c0c" stroke-width="22" stroke-linecap="round"/>
+  </g>
+  <text x="285" y="137" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="700" fill="#111111">Koda</text>
+  <text x="485" y="137" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="400" fill="#111111">Cut</text>
+  <text x="292" y="184" font-family="Arial, Helvetica, sans-serif" font-size="22" letter-spacing="8" fill="#444444">AUTOMATIC VIDEO EDITOR</text>
+</svg>
