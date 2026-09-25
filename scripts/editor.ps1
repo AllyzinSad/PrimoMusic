@@ -248,7 +248,14 @@ $probeAudio = (& $FFprobe -v error -select_streams a:0 -show_entries stream=inde
 $hasAudio = -not [string]::IsNullOrWhiteSpace($probeAudio)
 
 $encoders = (& $FFmpeg -hide_banner -encoders 2>&1 | Out-String)
-$canNvenc = $encoders -match "h264_nvenc"
+$canNvenc = $false
+if ($encoders -match "h264_nvenc") {
+    & $FFmpeg -hide_banner -loglevel error -f lavfi -i "color=black:s=64x64:r=30:d=0.1" -frames:v 1 -c:v h264_nvenc -f null NUL 2>$null | Out-Null
+    $canNvenc = ($LASTEXITCODE -eq 0)
+    if (-not $canNvenc) {
+        Write-Host "[AVISO] NVENC existe no FFmpeg, mas nao iniciou neste PC. Usando CPU." -ForegroundColor Yellow
+    }
+}
 
 $captionSrt = $null
 if ($CaptionMode -ne "off" -and $UseAutoTranscribe) {
