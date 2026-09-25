@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "fps": 60,
+  "duracao_saida": 0,
+  "musica": {"asset":"audio:trilha_dark","volume":0.07},
+  "timeline": [
+    {
+      "inicio": 8.0,
+      "fim": 14.0,
+      "elementos": [{"asset":"video:broll_01","posicao":"full","modo":"cover","source_start":0.0,"opacity":1.0}]
+    }
+  ]
+}
