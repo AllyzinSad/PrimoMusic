@@ -57,6 +57,12 @@ jobs:
           if not exist build mkdir build
           jar --create --file build\KodaCut.jar -C out .
 
+      - name: Validate portable app image
+        shell: cmd
+        run: |
+          jpackage --type app-image --dest ci-dist --name "Koda Cut CI" --input build --main-jar KodaCut.jar --main-class kodacut.KodaCut --vendor "Koda" --app-version 0.3 --icon assets\koda-cut.ico
+          if not exist "ci-dist\Koda Cut CI\Koda Cut CI.exe" exit /b 1
+
 
       - name: Verify Koda Cut v0.3 files
         shell: pwsh
