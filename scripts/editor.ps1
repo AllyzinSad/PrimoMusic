@@ -2,10 +2,20 @@ param(
     [Parameter(Mandatory=$true)][string]$Video,
     [Parameter(Mandatory=$true)][string]$Project,
     [Parameter(Mandatory=$true)][string]$Manifest,
-    [ValidateSet("horizontal","vertical","ambos")][string]$OutputMode = "horizontal",
+    [ValidateSet("horizontal","vertical","quadrado","horizontal_vertical","todos")][string]$OutputMode = "horizontal",
     [ValidateSet("blur","crop")][string]$VerticalMode = "blur",
     [ValidateSet("eco","balanceado","qualidade")][string]$Quality = "balanceado",
-    [Parameter(Mandatory=$true)][string]$OutputDir
+    [Parameter(Mandatory=$true)][string]$OutputDir,
+    [ValidateSet("off","completa","destaques","palavra")][string]$CaptionMode = "off",
+    [string]$AutoTranscribe = "true",
+    [ValidateSet("pt","auto","en","es")][string]$Language = "pt",
+    [string]$SafeZone = "true",
+    [string]$NoiseReduction = "true",
+    [string]$NormalizeAudio = "true",
+    [string]$Ducking = "true",
+    [double]$VoiceVolume = 1.0,
+    [double]$DefaultMusicVolume = 0.08,
+    [ValidateSet("personalizado","gameplay","dark","podcast","shorts","clean","cinematico")][string]$Style = "personalizado"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +25,7 @@ $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $FFmpeg = Join-Path $Root "ffmpeg\bin\ffmpeg.exe"
 $FFprobe = Join-Path $Root "ffmpeg\bin\ffprobe.exe"
 $TempDir = Join-Path $Root "temp"
+$Transcriptions = Join-Path $Root "transcricoes"
 
 function GP($Obj, [string]$Name, $Default = $null) {
     if ($null -ne $Obj -and $Obj.PSObject.Properties.Name -contains $Name) { return $Obj.$Name }
@@ -23,6 +34,11 @@ function GP($Obj, [string]$Name, $Default = $null) {
 
 function Num([double]$n) {
     return $n.ToString("0.###",[Globalization.CultureInfo]::InvariantCulture)
+}
+
+function To-Bool([string]$value, [bool]$default = $false) {
+    if ([string]::IsNullOrWhiteSpace($value)) { return $default }
+    return $value.Trim().ToLowerInvariant() -in @("true","1","yes","sim","on")
 }
 
 function Escape-FilterPath([string]$p) {
@@ -37,7 +53,11 @@ function Get-Asset([string]$id) {
 }
 
 function Get-Position([string]$pos, [string]$kind) {
-    if ($kind -eq "vertical") { $bottomY = "H-h-260" } else { $bottomY = "H-h-40" }
+    if ($kind -eq "vertical") {
+        if ($UseSafeZone) { $bottomY = "H-h-300" } else { $bottomY = "H-h-70" }
+    } else {
+        $bottomY = "H-h-40"
+    }
 
     switch ($pos.ToLowerInvariant()) {
         "bottom-right"  { return @("W-w-40",$bottomY) }
@@ -49,14 +69,164 @@ function Get-Position([string]$pos, [string]$kind) {
     }
 }
 
+function Time-ToSeconds([string]$t) {
+    $m = [regex]::Match($t.Trim(),'(?<h>\d{2}):(?<m>\d{2}):(?<s>\d{2})[,.](?<ms>\d{3})')
+    if (-not $m.Success) { return 0.0 }
+    return ([int]$m.Groups["h"].Value * 3600) +
+           ([int]$m.Groups["m"].Value * 60) +
+           [int]$m.Groups["s"].Value +
+           ([int]$m.Groups["ms"].Value / 1000.0)
+}
+
+function Seconds-ToSrt([double]$sec) {
+    if ($sec -lt 0) { $sec = 0 }
+    $ts = [TimeSpan]::FromSeconds($sec)
+    $hours = [Math]::Floor($ts.TotalHours)
+    return ("{0:00}:{1:00}:{2:00},{3:000}" -f $hours,$ts.Minutes,$ts.Seconds,$ts.Milliseconds)
+}
+
+function Parse-Srt([string]$path) {
+    $text = Get-Content $path -Raw -Encoding UTF8
+    $blocks = [regex]::Split($text.Trim(),"\r?\n\r?\n+")
+    $items = @()
+
+    foreach ($block in $blocks) {
+        $lines = $block -split "\r?\n"
+        if ($lines.Count -lt 2) { continue }
+
+        $timeIndex = 0
+        if ($lines[0] -match '^\d+$') { $timeIndex = 1 }
+        if ($timeIndex -ge $lines.Count) { continue }
+
+        $tm = [regex]::Match($lines[$timeIndex],'(?<a>\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(?<b>\d{2}:\d{2}:\d{2}[,.]\d{3})')
+        if (-not $tm.Success) { continue }
+
+        $bodyStart = $timeIndex + 1
+        if ($bodyStart -ge $lines.Count) { continue }
+        $body = (($lines[$bodyStart..($lines.Count-1)] -join " ") -replace '<[^>]+>','').Trim()
+        if ([string]::IsNullOrWhiteSpace($body)) { continue }
+
+        $items += [pscustomobject]@{
+            Start = Time-ToSeconds $tm.Groups["a"].Value
+            End = Time-ToSeconds $tm.Groups["b"].Value
+            Text = $body
+        }
+    }
+    return @($items)
+}
+
+function Score-Subtitle([string]$text) {
+    $score = 0.0
+    $clean = $text.Trim()
+    if ($clean -match '[!?]') { $score += 2.5 }
+    if ($clean -match '(?i)\b(nossa|caraca|mano|meu deus|impossivel|absurdo|olha|agora|pera|espera|como|por que|porque|serio|mentira|acertou|errou|ganhou|perdeu|cuidado)\b') { $score += 3.0 }
+    if ($clean -match '(?i)(kkk|haha|rsrs)') { $score += 2.0 }
+    if ($clean.Length -ge 18 -and $clean.Length -le 95) { $score += 1.0 }
+    if ($clean -cmatch '[A-ZÁÉÍÓÚÃÕÇ]{4,}') { $score += 1.0 }
+    return $score
+}
+
+function Select-Highlights($items) {
+    if ($items.Count -eq 0) { return @() }
+    $scored = @()
+    for ($i=0; $i -lt $items.Count; $i++) {
+        $it = $items[$i]
+        $scored += [pscustomobject]@{ Index=$i; Score=(Score-Subtitle $it.Text); Item=$it }
+    }
+    $take = [Math]::Max(1,[Math]::Ceiling($items.Count * 0.35))
+    $picked = $scored | Sort-Object Score -Descending | Select-Object -First $take
+    return @($picked | Sort-Object Index | ForEach-Object { $_.Item })
+}
+
+function Write-Srt($items, [string]$path) {
+    $sb = New-Object Text.StringBuilder
+    $i = 1
+    foreach ($it in $items) {
+        [void]$sb.AppendLine($i.ToString())
+        [void]$sb.AppendLine((Seconds-ToSrt $it.Start) + " --> " + (Seconds-ToSrt $it.End))
+        [void]$sb.AppendLine($it.Text)
+        [void]$sb.AppendLine("")
+        $i++
+    }
+    [IO.File]::WriteAllText($path,$sb.ToString(),(New-Object Text.UTF8Encoding($false)))
+}
+
+function Ass-Time([double]$sec) {
+    if ($sec -lt 0) { $sec = 0 }
+    $ts = [TimeSpan]::FromSeconds($sec)
+    $hours = [Math]::Floor($ts.TotalHours)
+    $cs = [Math]::Floor($ts.Milliseconds / 10)
+    return ("{0}:{1:00}:{2:00}.{3:00}" -f $hours,$ts.Minutes,$ts.Seconds,$cs)
+}
+
+function Escape-AssText([string]$text) {
+    return $text.Replace("\","\\").Replace("{","\{").Replace("}","\}").Replace([char]13," ").Replace([char]10," ")
+}
+
+function Write-KaraokeAss($items, [string]$path, [int]$W, [int]$H, [string]$kind) {
+    if ($kind -eq "vertical") {
+        $fontSize = 66
+        if ($UseSafeZone) { $marginV = 300 } else { $marginV = 120 }
+    } elseif ($kind -eq "quadrado") {
+        $fontSize = 48
+        $marginV = 100
+    } else {
+        $fontSize = 46
+        $marginV = 90
+    }
+
+    if ($Style -eq "dark") { $fontSize = [Math]::Max(38,$fontSize - 8) }
+    if ($Style -eq "gameplay") { $fontSize += 5 }
+
+    $header = @"
+[Script Info]
+ScriptType: v4.00+
+PlayResX: $W
+PlayResY: $H
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
+Style: Koda,Arial,$fontSize,&H00FFFFFF,&H006E6E6E,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,4,1,2,70,70,$marginV,1
+
+[Events]
+Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
+"@
+
+    $sb = New-Object Text.StringBuilder
+    [void]$sb.Append($header)
+
+    foreach ($it in $items) {
+        $words = @($it.Text -split '\s+' | Where-Object { $_ -ne "" })
+        if ($words.Count -eq 0) { continue }
+        $duration = [Math]::Max(0.2,$it.End - $it.Start)
+        $centis = [Math]::Max(1,[Math]::Floor(($duration * 100) / $words.Count))
+        $text = ""
+        foreach ($word in $words) {
+            $text += ("{\k" + $centis + "}" + (Escape-AssText $word) + " ")
+        }
+        $line = "Dialogue: 0," + (Ass-Time $it.Start) + "," + (Ass-Time $it.End) + ",Koda,,0,0,0,," + $text.Trim()
+        [void]$sb.AppendLine($line)
+    }
+
+    [IO.File]::WriteAllText($path,$sb.ToString(),(New-Object Text.UTF8Encoding($false)))
+}
+
 if (-not (Test-Path $FFmpeg) -or -not (Test-Path $FFprobe)) {
-    throw "FFmpeg nao configurado. Abra o Koda Cut e clique CONFIGURAR FFmpeg."
+    throw "FFmpeg nao configurado. Abra o Koda Cut e clique CONFIGURAR FERRAMENTAS."
 }
 if (-not (Test-Path $Video)) { throw "Video principal nao encontrado: $Video" }
-if (-not (Test-Path $Project)) { throw "Prompt/KodaScript nao encontrado: $Project" }
+if (-not (Test-Path $Project)) { throw "KodaScript nao encontrado: $Project" }
 if (-not (Test-Path $Manifest)) { throw "Mapa de arquivos nao encontrado: $Manifest" }
 
-New-Item -ItemType Directory -Force -Path $TempDir,$OutputDir | Out-Null
+$UseSafeZone = To-Bool $SafeZone $true
+$UseNoiseReduction = To-Bool $NoiseReduction $true
+$UseNormalize = To-Bool $NormalizeAudio $true
+$UseDucking = To-Bool $Ducking $true
+$UseAutoTranscribe = To-Bool $AutoTranscribe $true
+
+New-Item -ItemType Directory -Force -Path $TempDir,$OutputDir,$Transcriptions | Out-Null
 Get-ChildItem $TempDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 $cfg = Get-Content $Project -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -70,7 +240,6 @@ if ($cfg.PSObject.Properties.Name -contains "timeline") {
     $events = @()
 }
 
-$audioCfg = GP $cfg "audio" $null
 $musicCfg = GP $cfg "musica" $null
 $fps = [int](GP $cfg "fps" 60)
 $limit = [double](GP $cfg "duracao_saida" 0)
@@ -81,8 +250,28 @@ $hasAudio = -not [string]::IsNullOrWhiteSpace($probeAudio)
 $encoders = (& $FFmpeg -hide_banner -encoders 2>&1 | Out-String)
 $canNvenc = $encoders -match "h264_nvenc"
 
+$captionSrt = $null
+if ($CaptionMode -ne "off" -and $UseAutoTranscribe) {
+    $stem = [IO.Path]::GetFileNameWithoutExtension($Video)
+    $safeStem = ($stem -replace '[^\p{L}\p{Nd}\-_ ]','').Trim()
+    if ([string]::IsNullOrWhiteSpace($safeStem)) { $safeStem = "transcricao" }
+    $expected = Join-Path $Transcriptions ($safeStem + ".srt")
+
+    if (-not (Test-Path $expected)) {
+        Write-Host "[Koda Cut] Gerando legenda local com Whisper..." -ForegroundColor Cyan
+        & (Join-Path $Root "scripts\transcrever.ps1") -Video $Video -Language $Language -OutputDir $Transcriptions
+    }
+    if (Test-Path $expected) { $captionSrt = $expected }
+}
+
 function Render-One([string]$Kind) {
-    if ($Kind -eq "vertical") { $W=1080; $H=1920 } else { $W=1920; $H=1080 }
+    if ($Kind -eq "vertical") {
+        $W=1080; $H=1920
+    } elseif ($Kind -eq "quadrado") {
+        $W=1080; $H=1080
+    } else {
+        $W=1920; $H=1080
+    }
 
     $args = New-Object Collections.Generic.List[string]
     $args.Add("-hide_banner")
@@ -229,6 +418,7 @@ function Render-One([string]$Kind) {
     $vcur = "v0"
     $captionCounter = 0
     $elementCounter = 0
+    $shakeCounter = 0
 
     foreach ($info in $eventInfo) {
         $ev = $info.ev
@@ -250,6 +440,16 @@ function Render-One([string]$Kind) {
             $vcur = "vz$n"
         }
 
+        $shake = [double](GP $ev "shake" 0)
+        if ($shake -gt 0) {
+            $shakeCounter++
+            $amount = [Math]::Max(2,[Math]::Min(24,$shake))
+            $filters.Add(("[{0}]split=2[shk{1}][shs{1}]" -f $vcur,$shakeCounter))
+            $filters.Add(("[shs{0}]crop=iw/1.04:ih/1.04:x='(iw-ow)/2+{1}*sin(45*t)':y='(ih-oh)/2+{1}*cos(38*t)',scale={2}:{3}[sho{0}]" -f $shakeCounter,(Num $amount),$W,$H))
+            $filters.Add(("[shk{0}][sho{0}]overlay=0:0:enable='between(t,{1},{2})'[shv{0}]" -f $shakeCounter,$s,$e))
+            $vcur = "shv$shakeCounter"
+        }
+
         $freeze = [bool](GP $ev "freeze" $false)
         if ($freeze) {
             $frameEnd = Num ($start + (1.0 / [Math]::Max(30,$fps)))
@@ -264,7 +464,6 @@ function Render-One([string]$Kind) {
             $elementCounter++
             $el = $ei.element
             $inputNo = $ei.input
-            $type = $ei.type
 
             $mode = ([string](GP $el "modo" "fit")).ToLowerInvariant()
             $pos = ([string](GP $el "posicao" "bottom-left")).ToLowerInvariant()
@@ -273,7 +472,7 @@ function Render-One([string]$Kind) {
             if ($opacity -gt 1) { $opacity = 1 }
             $opacityS = Num $opacity
 
-            if ($Kind -eq "vertical") { $defaultWidth = 430 } else { $defaultWidth = 360 }
+            if ($Kind -eq "vertical") { $defaultWidth = 430 } elseif ($Kind -eq "quadrado") { $defaultWidth = 330 } else { $defaultWidth = 360 }
             $width = [int](GP $el "largura" $defaultWidth)
 
             $prepared = "elprep$elementCounter"
@@ -304,14 +503,16 @@ function Render-One([string]$Kind) {
             [IO.File]::WriteAllText($txt,$textValue,(New-Object Text.UTF8Encoding($false)))
             $txtEsc = Escape-FilterPath $txt
 
-            if ($Kind -eq "vertical") { $defaultSize = 68 } else { $defaultSize = 58 }
+            if ($Kind -eq "vertical") { $defaultSize = 68 } elseif ($Kind -eq "quadrado") { $defaultSize = 54 } else { $defaultSize = 58 }
             $size = [int](GP $ev "font_size" $defaultSize)
             $pos = ([string](GP $ev "texto_posicao" "top")).ToLowerInvariant()
 
             switch ($pos) {
                 "center" { $ty="(h-text_h)/2" }
                 "bottom" {
-                    if ($Kind -eq "vertical") { $ty="h-text_h-h*0.22" } else { $ty="h-text_h-h*0.10" }
+                    if ($Kind -eq "vertical" -and $UseSafeZone) { $ty="h-text_h-h*0.24" }
+                    elseif ($Kind -eq "vertical") { $ty="h-text_h-h*0.10" }
+                    else { $ty="h-text_h-h*0.10" }
                 }
                 default {
                     if ($Kind -eq "vertical") { $ty="h*0.10" } else { $ty="h*0.07" }
@@ -319,21 +520,54 @@ function Render-One([string]$Kind) {
             }
 
             $font = "C\:/Windows/Fonts/arialbd.ttf"
-            $filters.Add(("[{0}]drawtext=fontfile='{1}':textfile='{2}':fontcolor=white:fontsize={3}:borderw=5:bordercolor=black:box=1:boxcolor=black@0.22:boxborderw=14:x=(w-text_w)/2:y={4}:enable='between(t,{5},{6})'[vt{7}]" -f $vcur,$font,$txtEsc,$size,$ty,$s,$e,$n))
+            $filters.Add(("[{0}]drawtext=fontfile='{1}':textfile='{2}':fontcolor=white:fontsize={3}:borderw=5:bordercolor=black:box=1:boxcolor=black@0.20:boxborderw=14:x=(w-text_w)/2:y={4}:enable='between(t,{5},{6})'[vt{7}]" -f $vcur,$font,$txtEsc,$size,$ty,$s,$e,$n))
             $vcur = "vt$n"
         }
     }
 
-    $reduceNoise = [bool](GP $audioCfg "reduzir_ruido" $true)
-    $normalize = [bool](GP $audioCfg "normalizar" $true)
-    $voiceVol = Num ([double](GP $audioCfg "volume" 1.0))
+    if ($CaptionMode -ne "off" -and $null -ne $captionSrt -and (Test-Path $captionSrt)) {
+        $subtitleSource = $captionSrt
+
+        if ($CaptionMode -eq "destaques") {
+            $allItems = Parse-Srt $captionSrt
+            $selected = Select-Highlights $allItems
+            $subtitleSource = Join-Path $TempDir ("highlights_" + $Kind + ".srt")
+            Write-Srt $selected $subtitleSource
+        }
+
+        if ($CaptionMode -eq "palavra") {
+            $allItems = Parse-Srt $captionSrt
+            $ass = Join-Path $TempDir ("karaoke_" + $Kind + ".ass")
+            Write-KaraokeAss $allItems $ass $W $H $Kind
+            $assEsc = Escape-FilterPath $ass
+            $filters.Add(("[{0}]ass=filename='{1}'[vcaption]" -f $vcur,$assEsc))
+            $vcur = "vcaption"
+        } else {
+            $subEsc = Escape-FilterPath $subtitleSource
+            if ($Kind -eq "vertical") {
+                if ($Style -eq "dark") { $fontSize = 20 } else { $fontSize = 24 }
+                if ($UseSafeZone) { $marginV = 300 } else { $marginV = 120 }
+            } elseif ($Kind -eq "quadrado") {
+                $fontSize = 21
+                $marginV = 95
+            } else {
+                if ($Style -eq "dark") { $fontSize = 18 } else { $fontSize = 21 }
+                $marginV = 80
+            }
+            $force = "FontName=Arial,FontSize=$fontSize,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginV=$marginV"
+            $filters.Add(("[{0}]subtitles=filename='{1}':force_style='{2}'[vcaption]" -f $vcur,$subEsc,$force))
+            $vcur = "vcaption"
+        }
+    }
+
+    $voiceVol = Num $VoiceVolume
 
     if ($hasAudio) {
         $af = @("aresample=48000","aformat=channel_layouts=stereo","highpass=f=75","lowpass=f=17000")
-        if ($reduceNoise) { $af += "afftdn=nf=-25" }
-        if ($normalize) { $af += "dynaudnorm=f=150:g=7" }
+        if ($UseNoiseReduction) { $af += "afftdn=nf=-25" }
+        if ($UseNormalize) { $af += "dynaudnorm=f=150:g=7" }
         $af += "volume=$voiceVol"
-        $filters.Add("[0:a]" + ($af -join ",") + "[a0]")
+        $filters.Add("[0:a]" + ($af -join ",") + "[voice0]")
     } else {
         if ($limit -gt 0) {
             $dur = $limit
@@ -341,29 +575,37 @@ function Render-One([string]$Kind) {
             $durationText = (& $FFprobe -v error -show_entries format=duration -of default=nw=1:nk=1 $Video | Select-Object -First 1)
             $dur = [double]::Parse($durationText,[Globalization.CultureInfo]::InvariantCulture)
         }
-        $filters.Add(("anullsrc=r=48000:cl=stereo,atrim=duration={0}[a0]" -f (Num $dur)))
+        $filters.Add(("anullsrc=r=48000:cl=stereo,atrim=duration={0}[voice0]" -f (Num $dur)))
     }
 
     $audioLabels = New-Object Collections.Generic.List[string]
-    $audioLabels.Add("[a0]")
 
     if ($null -ne $musicIndex) {
-        $mv = Num ([double](GP $musicCfg "volume" 0.08))
-        $filters.Add(("[{0}:a]aresample=48000,aformat=channel_layouts=stereo,volume={1}[music0]" -f $musicIndex,$mv))
-        $audioLabels.Add("[music0]")
+        $mv = [double](GP $musicCfg "volume" $DefaultMusicVolume)
+        $mvS = Num $mv
+        $filters.Add(("[{0}:a]aresample=48000,aformat=channel_layouts=stereo,volume={1}[musicRaw]" -f $musicIndex,$mvS))
+
+        if ($UseDucking -and $hasAudio) {
+            $filters.Add("[voice0]asplit=2[voiceMix][voiceSide]")
+            $filters.Add("[musicRaw][voiceSide]sidechaincompress=threshold=0.025:ratio=8:attack=20:release=300[musicDuck]")
+            $audioLabels.Add("[voiceMix]")
+            $audioLabels.Add("[musicDuck]")
+        } else {
+            $audioLabels.Add("[voice0]")
+            $audioLabels.Add("[musicRaw]")
+        }
+    } else {
+        $audioLabels.Add("[voice0]")
     }
 
     $soundCounter = 0
     foreach ($info in $eventInfo) {
         $ev = $info.ev
         $eventStart = [double](GP $ev "inicio" 0)
-        $eventEnd = [double](GP $ev "fim" ($eventStart + 1))
-        if ($eventEnd -le $eventStart) { $eventEnd = $eventStart + 1 }
 
         foreach ($si in $info.sounds) {
             $soundCounter++
             $snd = $si.sound
-
             $at = [double](GP $snd "at" 0)
             $timelineStart = [Math]::Max(0, $eventStart + $at)
             $delay = [int][Math]::Round($timelineStart * 1000)
@@ -382,12 +624,14 @@ function Render-One([string]$Kind) {
     if ($audioLabels.Count -gt 1) {
         $filters.Add(($audioLabels -join "") + ("amix=inputs={0}:duration=first:dropout_transition=0,alimiter=limit=0.95[aout]" -f $audioLabels.Count))
     } else {
-        $filters.Add("[a0]alimiter=limit=0.95[aout]")
+        $filters.Add("[voice0]alimiter=limit=0.95[aout]")
     }
 
     $stem = [IO.Path]::GetFileNameWithoutExtension($Video)
     if ($Kind -eq "vertical") {
         $out = Join-Path $OutputDir ($stem + "_VERTICAL_1080x1920_60p.mp4")
+    } elseif ($Kind -eq "quadrado") {
+        $out = Join-Path $OutputDir ($stem + "_QUADRADO_1080x1080_60p.mp4")
     } else {
         $out = Join-Path $OutputDir ($stem + "_HORIZONTAL_1080p60.mp4")
     }
@@ -462,11 +706,19 @@ function Render-One([string]$Kind) {
     Write-Host ("[OK] {0}" -f $out) -ForegroundColor Green
 }
 
-if ($OutputMode -eq "ambos") {
-    Render-One "horizontal"
-    Render-One "vertical"
-} else {
-    Render-One $OutputMode
+switch ($OutputMode) {
+    "horizontal_vertical" {
+        Render-One "horizontal"
+        Render-One "vertical"
+    }
+    "todos" {
+        Render-One "horizontal"
+        Render-One "vertical"
+        Render-One "quadrado"
+    }
+    default {
+        Render-One $OutputMode
+    }
 }
 
 Get-ChildItem $TempDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
