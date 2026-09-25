@@ -1,0 +1,31 @@
+.koda-bridge{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:2147483647;
+  width:300px;
+  box-sizing:border-box;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+  background:rgba(15,15,15,.96);
+  color:#f6f6f6;
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
+  font-family:Arial,Helvetica,sans-serif;
+}
+.koda-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.koda-brand{font-size:16px;font-weight:800}
+.koda-badge{font-size:10px;font-weight:800;color:#d4af37;border:1px solid #d4af37;border-radius:999px;padding:3px 7px}
+.koda-state{font-size:13px;font-weight:800;margin-bottom:4px}
+.koda-detail{font-size:11px;line-height:1.35;color:#aaa;margin-bottom:11px;word-break:break-word}
+.koda-btn{width:100%;border:0;border-radius:10px;padding:10px 11px;margin-top:7px;background:#292929;color:#fff;font-size:11px;font-weight:800;cursor:pointer}
+.koda-btn:hover{filter:brightness(1.15)}
+.koda-btn:disabled{opacity:.55;cursor:wait}
+.koda-btn.primary{background:#d4af37;color:#090909}
+.koda-btn.danger{background:#4b2020;color:#ffd8d8}
+.koda-progress-wrap{height:7px;background:#252525;border-radius:99px;overflow:hidden;margin:10px 0 3px}
+.koda-progress-bar{height:100%;width:0;background:#d4af37;transition:width .25s ease}
+.koda-bridge[data-mode="ok"] .koda-state{color:#94e6a8}
+.koda-bridge[data-mode="error"] .koda-state{color:#ff9a9a}
+.koda-bridge[data-mode="working"] .koda-state{color:#d4af37}
+.hidden{display:none!important}
