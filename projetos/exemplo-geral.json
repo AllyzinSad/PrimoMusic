@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "fps": 60,
+  "duracao_saida": 20,
+  "audio": {
+    "reduzir_ruido": true,
+    "normalizar": true,
+    "volume": 1.0
+  },
+  "musica": {
+    "asset": "",
+    "volume": 0.08
+  },
+  "timeline": [
+    {
+      "inicio": 0.0,
+      "fim": 2.0,
+      "texto": "ABERTURA DO VIDEO",
+      "texto_posicao": "top",
+      "zoom": 1.08,
+      "elementos": [
+        {
+          "asset": "image:logo",
+          "posicao": "top-right",
+          "largura": 220,
+          "opacity": 1.0
+        }
+      ],
+      "audios": [
+        {
+          "asset": "audio:whoosh",
+          "at": 0.0,
+          "volume": 0.55
+        }
+      ]
+    },
+    {
+      "inicio": 5.0,
+      "fim": 8.0,
+      "texto": "EXEMPLO DE B-ROLL",
+      "texto_posicao": "bottom",
+      "elementos": [
+        {
+          "asset": "video:broll",
+          "posicao": "full",
+          "modo": "cover",
+          "source_start": 0.0,
+          "opacity": 1.0
+        }
+      ]
+    },
+    {
+      "inicio": 12.0,
+      "fim": 13.0,
+      "texto": "IMPACTO!",
+      "texto_posicao": "center",
+      "zoom": 1.22,
+      "freeze": true,
+      "audios": [
+        {
+          "asset": "audio:impacto",
+          "at": 0.0,
+          "volume": 0.75
+        }
+      ]
+    }
+  ]
+}
