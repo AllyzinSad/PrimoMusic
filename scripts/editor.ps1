@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$Video,
     [Parameter(Mandatory=$true)][string]$Project,
+    [Parameter(Mandatory=$true)][string]$Manifest,
     [ValidateSet("horizontal","vertical","ambos")][string]$OutputMode = "horizontal",
     [ValidateSet("blur","crop")][string]$VerticalMode = "blur",
     [ValidateSet("eco","balanceado","qualidade")][string]$Quality = "balanceado",
@@ -24,27 +25,51 @@ function Num([double]$n) {
     return $n.ToString("0.###",[Globalization.CultureInfo]::InvariantCulture)
 }
 
-function Resolve-KodaPath([string]$p) {
-    if ([string]::IsNullOrWhiteSpace($p)) { return $null }
-    if ([IO.Path]::IsPathRooted($p)) { return $p }
-    return Join-Path $Root $p
-}
-
 function Escape-FilterPath([string]$p) {
     return $p.Replace("\","/").Replace(":","\:").Replace("'","\'")
 }
 
-if (-not (Test-Path $FFmpeg) -or -not (Test-Path $FFprobe)) {
-    throw "FFmpeg nao configurado. Abra o Koda Cut e clique CONFIGURAR."
+function Get-Asset([string]$id) {
+    if ([string]::IsNullOrWhiteSpace($id)) { return $null }
+    $prop = $assets.PSObject.Properties[$id]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
 }
-if (-not (Test-Path $Video)) { throw "Video nao encontrado: $Video" }
-if (-not (Test-Path $Project)) { throw "JSON nao encontrado: $Project" }
+
+function Get-Position([string]$pos, [string]$kind) {
+    if ($kind -eq "vertical") { $bottomY = "H-h-260" } else { $bottomY = "H-h-40" }
+
+    switch ($pos.ToLowerInvariant()) {
+        "bottom-right"  { return @("W-w-40",$bottomY) }
+        "bottom-center" { return @("(W-w)/2",$bottomY) }
+        "top-left"      { return @("40","80") }
+        "top-right"     { return @("W-w-40","80") }
+        "center"        { return @("(W-w)/2","(H-h)/2") }
+        default         { return @("40",$bottomY) }
+    }
+}
+
+if (-not (Test-Path $FFmpeg) -or -not (Test-Path $FFprobe)) {
+    throw "FFmpeg nao configurado. Abra o Koda Cut e clique CONFIGURAR FFmpeg."
+}
+if (-not (Test-Path $Video)) { throw "Video principal nao encontrado: $Video" }
+if (-not (Test-Path $Project)) { throw "Prompt/KodaScript nao encontrado: $Project" }
+if (-not (Test-Path $Manifest)) { throw "Mapa de arquivos nao encontrado: $Manifest" }
 
 New-Item -ItemType Directory -Force -Path $TempDir,$OutputDir | Out-Null
 Get-ChildItem $TempDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 $cfg = Get-Content $Project -Raw -Encoding UTF8 | ConvertFrom-Json
-$events = @(GP $cfg "eventos" @())
+$assets = Get-Content $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+
+if ($cfg.PSObject.Properties.Name -contains "timeline") {
+    $events = @($cfg.timeline)
+} elseif ($cfg.PSObject.Properties.Name -contains "eventos") {
+    $events = @($cfg.eventos)
+} else {
+    $events = @()
+}
+
 $audioCfg = GP $cfg "audio" $null
 $musicCfg = GP $cfg "musica" $null
 $fps = [int](GP $cfg "fps" 60)
@@ -52,6 +77,7 @@ $limit = [double](GP $cfg "duracao_saida" 0)
 
 $probeAudio = (& $FFprobe -v error -select_streams a:0 -show_entries stream=index -of csv=p=0 $Video 2>$null | Out-String).Trim()
 $hasAudio = -not [string]::IsNullOrWhiteSpace($probeAudio)
+
 $encoders = (& $FFmpeg -hide_banner -encoders 2>&1 | Out-String)
 $canNvenc = $encoders -match "h264_nvenc"
 
@@ -68,14 +94,19 @@ function Render-One([string]$Kind) {
     $musicIndex = $null
 
     if ($null -ne $musicCfg) {
-        $mf = Resolve-KodaPath ([string](GP $musicCfg "arquivo" ""))
-        if ($mf -and (Test-Path $mf)) {
-            $args.Add("-stream_loop")
-            $args.Add("-1")
-            $args.Add("-i")
-            $args.Add($mf)
-            $musicIndex = $nextInput
-            $nextInput++
+        $musicAssetId = [string](GP $musicCfg "asset" "")
+        if (-not [string]::IsNullOrWhiteSpace($musicAssetId)) {
+            $ma = Get-Asset $musicAssetId
+            if ($null -ne $ma -and (Test-Path ([string]$ma.path))) {
+                $args.Add("-stream_loop")
+                $args.Add("-1")
+                $args.Add("-i")
+                $args.Add([string]$ma.path)
+                $musicIndex = $nextInput
+                $nextInput++
+            } else {
+                Write-Host "[AVISO] Musica nao encontrada no mapa: $musicAssetId" -ForegroundColor Yellow
+            }
         }
     }
 
@@ -83,46 +114,101 @@ function Render-One([string]$Kind) {
 
     for ($i=0; $i -lt $events.Count; $i++) {
         $ev = $events[$i]
-        $pngIndex = $null
-        $sfxIndex = $null
+        $elementInfos = @()
+        $soundInfos = @()
 
-        $pngName = [string](GP $ev "png" "")
-        if (-not [string]::IsNullOrWhiteSpace($pngName)) {
-            $pngPath = Resolve-KodaPath $pngName
-            if (Test-Path $pngPath) {
+        $elements = @(GP $ev "elementos" @())
+        foreach ($el in $elements) {
+            $assetId = [string](GP $el "asset" "")
+            $asset = Get-Asset $assetId
+            if ($null -eq $asset) {
+                Write-Host "[AVISO] Elemento nao encontrado: $assetId" -ForegroundColor Yellow
+                continue
+            }
+
+            $assetPath = [string]$asset.path
+            if (-not (Test-Path $assetPath)) {
+                Write-Host "[AVISO] Arquivo nao existe: $assetPath" -ForegroundColor Yellow
+                continue
+            }
+
+            $type = [string]$asset.type
+            if ($type -ne "image" -and $type -ne "video") {
+                Write-Host "[AVISO] $assetId nao e imagem/video para overlay." -ForegroundColor Yellow
+                continue
+            }
+
+            if ($type -eq "image") {
                 $args.Add("-loop")
                 $args.Add("1")
                 $args.Add("-framerate")
                 $args.Add($fps.ToString())
                 $args.Add("-i")
-                $args.Add($pngPath)
-                $pngIndex = $nextInput
-                $nextInput++
+                $args.Add($assetPath)
             } else {
-                Write-Host "[AVISO] PNG nao encontrado: $pngPath" -ForegroundColor Yellow
+                $sourceStart = [double](GP $el "source_start" 0)
+                if ($sourceStart -gt 0) {
+                    $args.Add("-ss")
+                    $args.Add((Num $sourceStart))
+                }
+                if ([bool](GP $el "loop" $false)) {
+                    $args.Add("-stream_loop")
+                    $args.Add("-1")
+                }
+                $args.Add("-i")
+                $args.Add($assetPath)
             }
+
+            $elementInfos += [pscustomobject]@{
+                element = $el
+                input = $nextInput
+                type = $type
+                asset = $assetId
+            }
+            $nextInput++
         }
 
-        $sfxName = [string](GP $ev "sfx" "")
-        if (-not [string]::IsNullOrWhiteSpace($sfxName)) {
-            if ([IO.Path]::GetExtension($sfxName) -eq "") {
-                $sfxName = "efeitos\$sfxName.wav"
+        $sounds = @(GP $ev "audios" @())
+        foreach ($snd in $sounds) {
+            $assetId = [string](GP $snd "asset" "")
+            $asset = Get-Asset $assetId
+            if ($null -eq $asset) {
+                Write-Host "[AVISO] Audio nao encontrado: $assetId" -ForegroundColor Yellow
+                continue
             }
-            $sfxPath = Resolve-KodaPath $sfxName
-            if (Test-Path $sfxPath) {
-                $args.Add("-i")
-                $args.Add($sfxPath)
-                $sfxIndex = $nextInput
-                $nextInput++
-            } else {
-                Write-Host "[AVISO] SFX nao encontrado: $sfxPath" -ForegroundColor Yellow
+
+            $type = [string]$asset.type
+            if ($type -ne "audio" -and $type -ne "video") {
+                Write-Host "[AVISO] $assetId nao possui trilha de audio utilizavel." -ForegroundColor Yellow
+                continue
             }
+
+            $assetPath = [string]$asset.path
+            if (-not (Test-Path $assetPath)) {
+                Write-Host "[AVISO] Arquivo nao existe: $assetPath" -ForegroundColor Yellow
+                continue
+            }
+
+            $sourceStart = [double](GP $snd "source_start" 0)
+            if ($sourceStart -gt 0) {
+                $args.Add("-ss")
+                $args.Add((Num $sourceStart))
+            }
+            $args.Add("-i")
+            $args.Add($assetPath)
+
+            $soundInfos += [pscustomobject]@{
+                sound = $snd
+                input = $nextInput
+                asset = $assetId
+            }
+            $nextInput++
         }
 
         $eventInfo += [pscustomobject]@{
             ev = $ev
-            png = $pngIndex
-            sfx = $sfxIndex
+            elements = $elementInfos
+            sounds = $soundInfos
             n = $i
         }
     }
@@ -142,10 +228,12 @@ function Render-One([string]$Kind) {
 
     $vcur = "v0"
     $captionCounter = 0
+    $elementCounter = 0
 
     foreach ($info in $eventInfo) {
         $ev = $info.ev
         $n = $info.n
+
         $start = [double](GP $ev "inicio" 0)
         $end = [double](GP $ev "fim" ($start + 1.0))
         if ($end -le $start) { $end = $start + 0.2 }
@@ -172,27 +260,41 @@ function Render-One([string]$Kind) {
             $vcur = "vf$n"
         }
 
-        if ($null -ne $info.png) {
+        foreach ($ei in $info.elements) {
+            $elementCounter++
+            $el = $ei.element
+            $inputNo = $ei.input
+            $type = $ei.type
+
+            $mode = ([string](GP $el "modo" "fit")).ToLowerInvariant()
+            $pos = ([string](GP $el "posicao" "bottom-left")).ToLowerInvariant()
+            $opacity = [double](GP $el "opacity" 1.0)
+            if ($opacity -lt 0) { $opacity = 0 }
+            if ($opacity -gt 1) { $opacity = 1 }
+            $opacityS = Num $opacity
+
             if ($Kind -eq "vertical") { $defaultWidth = 430 } else { $defaultWidth = 360 }
-            $pw = [int](GP $ev "png_largura" $defaultWidth)
+            $width = [int](GP $el "largura" $defaultWidth)
 
-            if ($Kind -eq "vertical") { $defaultPos = "bottom-center" } else { $defaultPos = "bottom-left" }
-            $pos = ([string](GP $ev "png_posicao" $defaultPos)).ToLowerInvariant()
-
-            if ($Kind -eq "vertical") { $bottomY = "H-h-260" } else { $bottomY = "H-h-40" }
-
-            switch ($pos) {
-                "bottom-right"  { $x="W-w-40"; $y=$bottomY }
-                "bottom-center" { $x="(W-w)/2"; $y=$bottomY }
-                "top-left"      { $x="40"; $y="80" }
-                "top-right"     { $x="W-w-40"; $y="80" }
-                "center"        { $x="(W-w)/2"; $y="(H-h)/2" }
-                default         { $x="40"; $y=$bottomY }
+            $prepared = "elprep$elementCounter"
+            if ($pos -eq "full" -or $mode -eq "cover") {
+                $filters.Add(("[{0}:v]fps={1},setpts=PTS-STARTPTS+{2}/TB,scale={3}:{4}:force_original_aspect_ratio=increase,crop={3}:{4},format=rgba,colorchannelmixer=aa={5}[{6}]" -f $inputNo,$fps,$s,$W,$H,$opacityS,$prepared))
+                $x = "0"
+                $y = "0"
+            } elseif ($mode -eq "fit-full") {
+                $filters.Add(("[{0}:v]fps={1},setpts=PTS-STARTPTS+{2}/TB,scale={3}:{4}:force_original_aspect_ratio=decrease,format=rgba,colorchannelmixer=aa={5}[{6}]" -f $inputNo,$fps,$s,$W,$H,$opacityS,$prepared))
+                $x = "(W-w)/2"
+                $y = "(H-h)/2"
+            } else {
+                $filters.Add(("[{0}:v]fps={1},setpts=PTS-STARTPTS+{2}/TB,scale={3}:-1,format=rgba,colorchannelmixer=aa={4}[{5}]" -f $inputNo,$fps,$s,$width,$opacityS,$prepared))
+                $xy = Get-Position $pos $Kind
+                $x = $xy[0]
+                $y = $xy[1]
             }
 
-            $filters.Add(("[{0}:v]scale={1}:-1,format=rgba[png{2}]" -f $info.png,$pw,$n))
-            $filters.Add(("[{0}][png{1}]overlay=x={2}:y={3}:eof_action=pass:enable='between(t,{4},{5})'[vp{1}]" -f $vcur,$n,$x,$y,$s,$e))
-            $vcur = "vp$n"
+            $next = "ve$elementCounter"
+            $filters.Add(("[{0}][{1}]overlay=x={2}:y={3}:eof_action=pass:enable='between(t,{4},{5})'[{6}]" -f $vcur,$prepared,$x,$y,$s,$e,$next))
+            $vcur = $next
         }
 
         $textValue = [string](GP $ev "texto" "")
@@ -251,16 +353,29 @@ function Render-One([string]$Kind) {
         $audioLabels.Add("[music0]")
     }
 
-    $sfxNo = 0
+    $soundCounter = 0
     foreach ($info in $eventInfo) {
-        if ($null -ne $info.sfx) {
-            $sfxNo++
-            $ev = $info.ev
-            $start = [double](GP $ev "inicio" 0)
-            $delay = [int][Math]::Round($start * 1000)
-            $sv = Num ([double](GP $ev "sfx_volume" 0.65))
-            $filters.Add(("[{0}:a]aresample=48000,aformat=channel_layouts=stereo,volume={1},adelay={2}|{2}[sfx{3}]" -f $info.sfx,$sv,$delay,$sfxNo))
-            $audioLabels.Add("[sfx$sfxNo]")
+        $ev = $info.ev
+        $eventStart = [double](GP $ev "inicio" 0)
+        $eventEnd = [double](GP $ev "fim" ($eventStart + 1))
+        if ($eventEnd -le $eventStart) { $eventEnd = $eventStart + 1 }
+
+        foreach ($si in $info.sounds) {
+            $soundCounter++
+            $snd = $si.sound
+
+            $at = [double](GP $snd "at" 0)
+            $timelineStart = [Math]::Max(0, $eventStart + $at)
+            $delay = [int][Math]::Round($timelineStart * 1000)
+            $sv = Num ([double](GP $snd "volume" 0.70))
+            $dur = [double](GP $snd "duracao" 0)
+
+            if ($dur -gt 0) {
+                $filters.Add(("[{0}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=duration={1},asetpts=PTS-STARTPTS,volume={2},adelay={3}|{3}[snd{4}]" -f $si.input,(Num $dur),$sv,$delay,$soundCounter))
+            } else {
+                $filters.Add(("[{0}:a]aresample=48000,aformat=channel_layouts=stereo,asetpts=PTS-STARTPTS,volume={1},adelay={2}|{2}[snd{3}]" -f $si.input,$sv,$delay,$soundCounter))
+            }
+            $audioLabels.Add("[snd$soundCounter]")
         }
     }
 
@@ -274,7 +389,7 @@ function Render-One([string]$Kind) {
     if ($Kind -eq "vertical") {
         $out = Join-Path $OutputDir ($stem + "_VERTICAL_1080x1920_60p.mp4")
     } else {
-        $out = Join-Path $OutputDir ($stem + "_YOUTUBE_1080p60.mp4")
+        $out = Join-Path $OutputDir ($stem + "_HORIZONTAL_1080p60.mp4")
     }
 
     switch ($Quality) {
