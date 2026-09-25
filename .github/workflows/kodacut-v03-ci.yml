@@ -1,0 +1,58 @@
+name: Koda Cut v0.3 CI
+
+on:
+  push:
+    branches:
+      - kodacut-v0.3-source
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Compile Java sources
+        shell: cmd
+        run: |
+          if not exist out mkdir out
+          javac -encoding UTF-8 --release 17 -d out src\kodacut\*.java
+
+      - name: Generate official icon
+        shell: cmd
+        run: |
+          if not exist assets mkdir assets
+          java -cp out kodacut.IconMaker assets\koda-cut-icon.png assets\koda-cut.ico
+          if not exist assets\koda-cut-icon.png exit /b 1
+          if not exist assets\koda-cut.ico exit /b 1
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              Write-Host "Syntax errors in $($_.Name)" -ForegroundColor Red
+              $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
+              $failed = $true
+            } else {
+              Write-Host "OK $($_.Name)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Build jar
+        shell: cmd
+        run: |
+          if not exist build mkdir build
+          jar --create --file build\KodaCut.jar -C out .
