@@ -656,14 +656,45 @@ public class KodaCut extends JFrame {
     private JPanel buildFormatPanel() {
         JPanel wrap = page("Formato", "Um mesmo projeto pode gerar YouTube, Reels/Stories/Shorts e quadrado.");
 
+        JComboBox<String> formatOutput = new JComboBox<>(new String[]{
+            "Horizontal 16:9 (YouTube)",
+            "Vertical 9:16 (Reels / Shorts / Stories)",
+            "Quadrado 1:1",
+            "Horizontal + Vertical",
+            "Gerar todos"
+        });
+        JComboBox<String> formatVertical = new JComboBox<>(new String[]{
+            "Preservar video + fundo borrado",
+            "Crop central 9:16"
+        });
+        JCheckBox formatSafe = new JCheckBox("Safe zone para Reels/TikTok", safeZone.isSelected());
+
+        formatOutput.setSelectedIndex(outputMode.getSelectedIndex());
+        formatVertical.setSelectedIndex(verticalMode.getSelectedIndex());
+        formatOutput.addActionListener(e -> outputMode.setSelectedIndex(formatOutput.getSelectedIndex()));
+        formatVertical.addActionListener(e -> verticalMode.setSelectedIndex(formatVertical.getSelectedIndex()));
+        formatSafe.addActionListener(e -> safeZone.setSelected(formatSafe.isSelected()));
+
+        outputMode.addActionListener(e -> {
+            if (formatOutput.getSelectedIndex() != outputMode.getSelectedIndex()) {
+                formatOutput.setSelectedIndex(outputMode.getSelectedIndex());
+            }
+        });
+        verticalMode.addActionListener(e -> {
+            if (formatVertical.getSelectedIndex() != verticalMode.getSelectedIndex()) {
+                formatVertical.setSelectedIndex(verticalMode.getSelectedIndex());
+            }
+        });
+        safeZone.addActionListener(e -> formatSafe.setSelected(safeZone.isSelected()));
+
         JPanel p = panelBox();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.add(fieldGroup("Saida", outputMode));
+        p.add(fieldGroup("Saida", formatOutput));
         p.add(Box.createVerticalStrut(10));
-        p.add(fieldGroup("Vertical", verticalMode));
+        p.add(fieldGroup("Vertical", formatVertical));
         p.add(Box.createVerticalStrut(10));
-        styleCheck(safeZone);
-        p.add(safeZone);
+        styleCheck(formatSafe);
+        p.add(formatSafe);
         p.add(Box.createVerticalStrut(16));
         p.add(infoArea(
             "Horizontal: 1920x1080.\nVertical: 1080x1920.\nQuadrado: 1080x1080.\n\n" +
@@ -675,9 +706,20 @@ public class KodaCut extends JFrame {
     private JPanel buildStylesPanel() {
         JPanel wrap = page("Estilos", "Perfis mudam as configuracoes padrao; o KodaScript continua podendo mandar instrucoes especificas.");
 
+        JComboBox<String> stylesPagePreset = new JComboBox<>(new String[]{
+            "Personalizado", "Gameplay / Meme", "Dark / Narrado",
+            "Podcast / Cortes", "Shorts / Reels", "Clean / Documentario", "Cinematico"
+        });
+        stylesPagePreset.setSelectedItem(stylePreset.getSelectedItem());
+        stylesPagePreset.addActionListener(e -> {
+            Object selected = stylesPagePreset.getSelectedItem();
+            if (selected != null) applyProfile(selected.toString());
+        });
+        stylePreset.addActionListener(e -> stylesPagePreset.setSelectedItem(stylePreset.getSelectedItem()));
+
         JPanel p = panelBox();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.add(fieldGroup("Perfil atual", stylePreset));
+        p.add(fieldGroup("Perfil atual", stylesPagePreset));
         p.add(Box.createVerticalStrut(12));
 
         JButton gameplay = button("APLICAR GAMEPLAY / MEME");
