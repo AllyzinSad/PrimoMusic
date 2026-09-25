@@ -1,3 +1,59 @@
+KODA CONNECT v0.5 - NOVA DIRECAO DO PRODUTO
+
+A logica do produto mudou.
+
+O Koda nao e mais apenas um editor que depende de copiar prompts e KodaScript manualmente.
+A nova proposta e ser um aplicativo instalado no PC que funciona como ponte segura entre um assistente de IA compativel e o motor de edicao local.
+
+OBJETIVO FINAL
+1. O cliente instala o Koda Connect.
+2. O app inicia um servidor local automaticamente.
+3. O usuario autoriza quais pastas podem ser acessadas.
+4. Um plugin/conector compativel conversa com o Koda Connect.
+5. O usuario pede a edicao diretamente no chat.
+6. A IA usa ferramentas do Koda para listar projetos e assets, preparar a edicao, iniciar o render e acompanhar o status.
+7. FFmpeg, Whisper, CPU e GPU do proprio cliente executam o trabalho.
+8. O video final fica no computador do cliente.
+
+ESTADO DESTA v0.5
+- app Koda Connect leve;
+- servidor local em 127.0.0.1:8787;
+- token local aleatorio salvo em config/koda-connect-token.txt;
+- pastas permitidas em config/allowed-folders.txt;
+- endpoint publico local /health;
+- endpoints protegidos:
+  /api/capabilities
+  /api/projects
+  /api/assets
+  /api/render
+  /api/render/status
+  /api/cancel-render
+- motor antigo Koda Cut preservado como "Editor avancado";
+- ABRIR-KODACUT.bat agora inicia o Koda Connect;
+- BUILD-PORTABLE.bat gera o app com KodaConnect como classe principal.
+
+SEGURANCA
+- o servidor desta versao escuta somente em 127.0.0.1;
+- endpoints de controle exigem X-Koda-Token;
+- caminhos de arquivos sao limitados a pastas permitidas pelo usuario;
+- o token nao deve ser compartilhado publicamente;
+- ainda NAO existe tunel HTTPS/plugin publico nesta versao.
+
+PROXIMA ETAPA
+Criar a camada oficial de conexao com o ChatGPT/plugin, sem expor o computador do usuario diretamente e mantendo autorizacao explicita para cada instalacao.
+
+COMO TESTAR AGORA
+Extraia a pasta e execute:
+ABRIR-KODACUT.bat
+
+O Koda Connect deve abrir e mostrar:
+- Servidor local ativo em 127.0.0.1:8787
+- Pastas permitidas
+- Atividade do servidor
+- Botao para abrir o Editor avancado
+
+============================================================
+
 KODA CUT v0.4 - SOURCE DE TESTE
 
 Esta versao foca em deixar o Koda Cut mais comercial e simples para novos clientes.
