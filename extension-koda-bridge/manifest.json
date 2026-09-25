@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Koda Bridge Beta",
+  "version": "0.1.0",
+  "description": "Ponte local entre o ChatGPT no navegador e o Koda Connect.",
+  "permissions": ["storage", "clipboardWrite"],
+  "host_permissions": [
+    "http://127.0.0.1:17777/*",
+    "http://localhost:17777/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://*.chatgpt.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Koda Bridge Beta"
+  }
+}
