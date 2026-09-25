@@ -80,3 +80,76 @@ jobs:
             if (-not (Test-Path $file)) { throw "Missing required file: $file" }
           }
           Write-Host "Koda Cut v0.3 source set OK"
+
+
+  runtime-smoke:
+    if: contains(github.event.head_commit.message, '[runtime-smoke]') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure free local tools
+        shell: powershell
+        run: |
+          .\scripts\configurar.ps1
+
+      - name: Create spoken test video
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Speech
+          $speech = Join-Path $PWD "runtime-speech.wav"
+          $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+          $synth.SetOutputToWaveFile($speech)
+          $synth.Speak("Koda Cut automatic transcription test. The local video editor is processing this sentence correctly. This is a free offline speech test.")
+          $synth.Dispose()
+          & .\ffmpeg\bin\ffmpeg.exe -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=1280x720:rate=30" -i $speech -shortest -c:v libx264 -preset ultrafast -c:a aac runtime-test.mp4
+          if ($LASTEXITCODE -ne 0) { throw "Could not create runtime test video" }
+
+      - name: Test local Whisper transcription
+        shell: powershell
+        run: |
+          .\scripts\transcrever.ps1 -Video "$PWD\runtime-test.mp4" -Language en -OutputDir "$PWD\transcricoes"
+          $srt = Get-ChildItem .\transcricoes -Filter *.srt | Select-Object -First 1
+          if (-not $srt) { throw "Whisper did not create SRT" }
+          Write-Host "Whisper SRT: $($srt.FullName)"
+
+      - name: Create smoke KodaScript
+        shell: powershell
+        run: |
+          $project = @{
+            version = 3
+            fps = 30
+            duracao_saida = 3
+            musica = @{ asset = ""; volume = 0.08 }
+            timeline = @(
+              @{
+                inicio = 0.5
+                fim = 1.5
+                texto = "KODA CUT"
+                texto_posicao = "top"
+                zoom = 1.08
+                shake = 3
+                freeze = $false
+              }
+            )
+          }
+          $project | ConvertTo-Json -Depth 10 | Set-Content runtime-project.json -Encoding UTF8
+          $manifest = @{
+            "video:principal" = @{
+              type = "video"
+              path = (Resolve-Path .\runtime-test.mp4).Path
+              name = "runtime-test.mp4"
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content runtime-assets.json -Encoding UTF8
+
+      - name: Smoke render horizontal vertical and square
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force runtime-output | Out-Null
+          .\scripts\editor.ps1 -Video "$PWD\runtime-test.mp4" -Project "$PWD\runtime-project.json" -Manifest "$PWD\runtime-assets.json" -OutputMode todos -VerticalMode blur -Quality eco -OutputDir "$PWD\runtime-output" -CaptionMode completa -AutoTranscribe true -Language en -SafeZone true -NoiseReduction true -NormalizeAudio true -Ducking true -VoiceVolume 1.0 -DefaultMusicVolume 0.08 -Style clean
+          if ($LASTEXITCODE -ne 0) { throw "Koda Cut runtime render failed" }
+          $videos = @(Get-ChildItem .\runtime-output -Filter *.mp4)
+          if ($videos.Count -ne 3) { throw "Expected 3 rendered videos, found $($videos.Count)" }
+          $videos | ForEach-Object { Write-Host "OK $($_.Name) $($_.Length) bytes" }
