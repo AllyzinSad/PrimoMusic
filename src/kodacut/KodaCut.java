@@ -55,6 +55,27 @@ public class KodaCut extends JFrame {
         "Podcast / Cortes", "Shorts / Reels", "Clean / Documentario", "Cinematico"
     });
 
+    private final JComboBox<String> contentType = new JComboBox<>(new String[]{
+        "Gameplay", "Opiniao / Comentario", "Podcast / Entrevista", "Vlog",
+        "Review / Analise", "Tutorial / Educacional", "Dark / Narrado",
+        "Storytelling", "Documentario", "Noticias / Informativo",
+        "Produto / E-commerce", "Institucional", "Imobiliario", "Gastronomia",
+        "Fitness", "Viagem", "Musica", "React", "Unboxing", "Shorts / Reels",
+        "Anuncio / Redes sociais"
+    });
+
+    private final JComboBox<String> editStyle = new JComboBox<>(new String[]{
+        "Clean", "Dinamico", "Meme", "Cinematico", "Profissional",
+        "Viral", "Minimalista", "Dark", "Energetico", "Storytelling", "Corporativo"
+    });
+
+    private final JComboBox<String> destination = new JComboBox<>(new String[]{
+        "YouTube horizontal 16:9", "Vertical 9:16", "Instagram Feed 1:1",
+        "Stories 9:16", "Podcast completo", "Corte curto", "Anuncio"
+    });
+
+    private final JTextArea guidedDescription = new JTextArea();
+
     private final JTextArea promptArea = new JTextArea();
     private final JTextArea logArea = new JTextArea();
 
@@ -117,6 +138,7 @@ public class KodaCut extends JFrame {
         scanLibrary();
         loadExample();
         applyProfile("Gameplay / Meme");
+        SwingUtilities.invokeLater(() -> OnboardingDialog.showIfNeeded(this, root));
     }
 
     private Path detectRoot() {
@@ -147,7 +169,7 @@ public class KodaCut extends JFrame {
     }
 
     private void buildUi() {
-        setTitle("Koda Cut v0.3");
+        setTitle("Koda Cut v0.4");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(1180, 760));
         setSize(1380, 900);
@@ -170,6 +192,7 @@ public class KodaCut extends JFrame {
         sidebar.add(Box.createVerticalStrut(8));
 
         addNav("Inicio", "INICIO", "IN");
+        addNav("Novo Projeto", "GUIA", "NP");
         addNav("Edicao Automatica", "AUTO", "EA");
         addNav("Canal de Cortes", "CORTES", "CC");
         addNav("Gameplay", "GAMEPLAY", "GM");
@@ -183,6 +206,7 @@ public class KodaCut extends JFrame {
         addNav("Estilos", "ESTILOS", "ST");
         addNav("Lote", "LOTE", "LT");
         addNav("Renderizacao", "RENDER", "RD");
+        addNav("Como usar", "TUTORIAL", "?");
         addNav("Configuracoes", "CONFIG", "CF");
 
         sidebar.add(Box.createVerticalGlue());
@@ -194,6 +218,7 @@ public class KodaCut extends JFrame {
 
         cards.setBackground(BG);
         cards.add(buildHomePanel(), "INICIO");
+        cards.add(buildGuidePanel(), "GUIA");
         cards.add(buildAutoPanel(), "AUTO");
         cards.add(buildCutsPanel(), "CORTES");
         cards.add(buildPresetPanel(
@@ -219,13 +244,14 @@ public class KodaCut extends JFrame {
         cards.add(buildStylesPanel(), "ESTILOS");
         cards.add(buildBatchPanel(), "LOTE");
         cards.add(buildRenderPanel(), "RENDER");
+        cards.add(buildTutorialPanel(), "TUTORIAL");
         cards.add(buildSettingsPanel(), "CONFIG");
 
         body.add(sidebar, BorderLayout.WEST);
         body.add(cards, BorderLayout.CENTER);
         add(body, BorderLayout.CENTER);
 
-        JLabel footer = new JLabel("  Koda ecosystem • edicao local • FFmpeg + NVENC • Whisper local • sem creditos por render");
+        JLabel footer = new JLabel("  Koda Cut • seus projetos, seus arquivos, sua edição");
         footer.setForeground(MUTED);
         footer.setBorder(new EmptyBorder(7,12,9,12));
         add(footer, BorderLayout.SOUTH);
@@ -256,7 +282,7 @@ public class KodaCut extends JFrame {
         title.setForeground(FG);
         title.setFont(new Font("SansSerif", Font.BOLD, 13));
         title.setAlignmentX(Component.RIGHT_ALIGNMENT);
-        JLabel sub = new JLabel("Windows 10 x64 • otimizado para Ryzen 5 4500 + GTX 1660 Super");
+        JLabel sub = new JLabel("Edição automática para criadores • processamento local");
         sub.setForeground(MUTED);
         sub.setAlignmentX(Component.RIGHT_ALIGNMENT);
         right.add(Box.createVerticalGlue());
@@ -333,19 +359,230 @@ public class KodaCut extends JFrame {
         return wrap;
     }
 
+    private JPanel buildGuidePanel() {
+        JPanel wrap = page("Novo Projeto", "Escolha o conteúdo, o estilo e o destino. Depois copie as instruções para seu assistente de IA.");
+
+        JPanel main = new JPanel(new GridLayout(1,2,12,0));
+        main.setOpaque(false);
+
+        JPanel left = panelBox();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.add(label("Tipo de conteúdo", 13, Font.BOLD));
+        styleCombo(contentType);
+        left.add(contentType);
+        left.add(Box.createVerticalStrut(12));
+
+        left.add(label("Estilo de edição", 13, Font.BOLD));
+        styleCombo(editStyle);
+        left.add(editStyle);
+        left.add(Box.createVerticalStrut(12));
+
+        left.add(label("Destino do vídeo", 13, Font.BOLD));
+        styleCombo(destination);
+        left.add(destination);
+        left.add(Box.createVerticalStrut(18));
+
+        left.add(label("Como você quer o resultado?", 13, Font.BOLD));
+        guidedDescription.setLineWrap(true);
+        guidedDescription.setWrapStyleWord(true);
+        guidedDescription.setRows(8);
+        guidedDescription.setText("Ex.: quero ritmo médio, cortar pausas, usar zoom leve nas frases fortes, imagens de apoio e música bem baixa.");
+        styleTextArea(guidedDescription, true);
+        left.add(new JScrollPane(guidedDescription));
+        left.add(Box.createVerticalStrut(12));
+
+        JButton add = button("ADICIONAR ARQUIVOS AO PROJETO");
+        add.addActionListener(e -> addAssets());
+        left.add(add);
+
+        JPanel right = panelBox();
+        right.setLayout(new BorderLayout(0,12));
+        JPanel intro = new JPanel();
+        intro.setOpaque(false);
+        intro.setLayout(new BoxLayout(intro, BoxLayout.Y_AXIS));
+        intro.add(label("Converse com uma IA compatível", 20, Font.BOLD));
+        intro.add(Box.createVerticalStrut(8));
+        intro.add(infoArea("O Koda Cut copia uma explicação pronta do aplicativo e um mapa dos arquivos do projeto. Você cola isso no assistente que preferir e conversa normalmente sobre a edição.", 6));
+        right.add(intro, BorderLayout.NORTH);
+
+        JPanel steps = new JPanel();
+        steps.setOpaque(false);
+        steps.setLayout(new BoxLayout(steps, BoxLayout.Y_AXIS));
+        steps.add(commercialStep("1", "Copiar instruções para IA", "Explica a lógica do Koda Cut sem citar marcas externas."));
+        steps.add(Box.createVerticalStrut(8));
+        steps.add(commercialStep("2", "Copiar projeto para IA", "Inclui vídeo, imagens, áudios, B-rolls e suas preferências."));
+        steps.add(Box.createVerticalStrut(8));
+        steps.add(commercialStep("3", "Converse sobre o vídeo", "Peça mudanças até ficar satisfeito."));
+        steps.add(Box.createVerticalStrut(8));
+        steps.add(commercialStep("4", "Colar edição no Koda Cut", "Volte à Edição Automática e renderize."));
+        right.add(steps, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new GridLayout(3,1,8,8));
+        actions.setOpaque(false);
+        JButton copyInstructions = button("COPIAR INSTRUCOES PARA IA");
+        stylePrimary(copyInstructions);
+        copyInstructions.addActionListener(e -> copyAiInstructions());
+        JButton copyProject = button("COPIAR PROJETO PARA IA");
+        copyProject.addActionListener(e -> copyProjectForAssistant());
+        JButton openEditor = button("IR PARA EDICAO AUTOMATICA");
+        openEditor.addActionListener(e -> { cardLayout.show(cards, "AUTO"); highlightNav("AUTO"); });
+        actions.add(copyInstructions);
+        actions.add(copyProject);
+        actions.add(openEditor);
+        right.add(actions, BorderLayout.SOUTH);
+
+        main.add(left);
+        main.add(right);
+        wrap.add(main, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel commercialStep(String number, String title, String description) {
+        JPanel p = new JPanel(new BorderLayout(12,0));
+        p.setBackground(new Color(26,26,26));
+        p.setBorder(new EmptyBorder(12,12,12,12));
+        JLabel n = new JLabel(number, SwingConstants.CENTER);
+        n.setOpaque(true);
+        n.setBackground(new Color(212,175,55));
+        n.setForeground(Color.BLACK);
+        n.setFont(new Font("SansSerif", Font.BOLD, 16));
+        n.setPreferredSize(new Dimension(36,36));
+        p.add(n, BorderLayout.WEST);
+        JPanel text = new JPanel();
+        text.setOpaque(false);
+        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+        text.add(label(title, 14, Font.BOLD));
+        JLabel d = new JLabel(description);
+        d.setForeground(MUTED);
+        text.add(d);
+        p.add(text, BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPanel buildTutorialPanel() {
+        JPanel wrap = page("Como usar", "Tutorial rápido do Koda Cut para novos clientes.");
+        JPanel p = panelBox();
+        p.setLayout(new BorderLayout(18,18));
+
+        JPanel copy = new JPanel();
+        copy.setOpaque(false);
+        copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
+        copy.add(label("Aprenda em poucos minutos", 26, Font.BOLD));
+        copy.add(Box.createVerticalStrut(10));
+        copy.add(infoArea("O tutorial mostra, em slides, como adicionar arquivos, preparar o projeto para um assistente de IA, conversar sobre a edição e renderizar o resultado.", 5));
+        copy.add(Box.createVerticalStrut(18));
+        copy.add(commercialStep("1", "Adicione seus arquivos", "Vídeo, imagens, PNGs, áudios, músicas e B-rolls."));
+        copy.add(Box.createVerticalStrut(8));
+        copy.add(commercialStep("2", "Copie as instruções", "O app prepara o contexto necessário para a IA."));
+        copy.add(Box.createVerticalStrut(8));
+        copy.add(commercialStep("3", "Descreva o resultado", "Use linguagem normal e exemplos."));
+        copy.add(Box.createVerticalStrut(8));
+        copy.add(commercialStep("4", "Cole e renderize", "Escolha o formato e gere o vídeo."));
+        p.add(copy, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new GridLayout(3,1,8,8));
+        actions.setOpaque(false);
+        JButton tutorial = button("ABRIR TUTORIAL EM SLIDES");
+        stylePrimary(tutorial);
+        tutorial.addActionListener(e -> OnboardingDialog.showAlways(this, root));
+        JButton instructions = button("COPIAR INSTRUCOES PARA IA");
+        instructions.addActionListener(e -> copyAiInstructions());
+        JButton project = button("COPIAR PROJETO PARA IA");
+        project.addActionListener(e -> copyProjectForAssistant());
+        actions.add(tutorial);
+        actions.add(instructions);
+        actions.add(project);
+        p.add(actions, BorderLayout.SOUTH);
+
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private void copyAiInstructions() {
+        copyText(assistantInstructions(), "Instruções copiadas. Cole no assistente de IA que preferir.");
+    }
+
+    private void copyProjectForAssistant() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(assistantInstructions()).append("\n\n");
+        sb.append("KODA CUT - PROJETO ATUAL\n\n");
+        sb.append("Tipo de conteúdo: ").append(Objects.toString(contentType.getSelectedItem(), "")).append("\n");
+        sb.append("Estilo de edição: ").append(Objects.toString(editStyle.getSelectedItem(), "")).append("\n");
+        sb.append("Destino: ").append(Objects.toString(destination.getSelectedItem(), "")).append("\n");
+        sb.append("Pedido do cliente: ").append(guidedDescription.getText().trim()).append("\n\n");
+        sb.append("MAPA DE ARQUIVOS DISPONÍVEIS\n");
+        sb.append(buildManifestText()).append("\n");
+        sb.append("Converse comigo normalmente para ajustar a edição. Quando eu disser GERAR EDICAO, entregue somente o KodaScript JSON final compatível com o Koda Cut.");
+        copyText(sb.toString(), "Projeto copiado. Agora cole no assistente de IA e explique como quer seu vídeo.");
+    }
+
+    private String assistantInstructions() {
+        return """
+Você vai me ajudar a preparar uma edição para o Koda Cut.
+
+O Koda Cut é um editor automático que executa instruções estruturadas chamadas KodaScript. Eu vou conversar com você normalmente sobre como quero o vídeo.
+
+Seu trabalho é:
+- entender o tipo de conteúdo, o estilo, o ritmo e o formato desejado;
+- analisar o material que eu enviar quando ele estiver disponível;
+- usar SOMENTE os arquivos presentes no MAPA DE ARQUIVOS;
+- decidir onde usar cortes, zoom, shake, freeze frame, textos, legendas, imagens, PNGs, B-rolls, efeitos sonoros e música;
+- manter fala, legibilidade e elementos importantes do vídeo como prioridade;
+- usar timestamps reais do vídeo;
+- nunca inventar nomes de assets que não estejam no mapa;
+- quando eu disser GERAR EDICAO, entregar somente um KodaScript JSON compatível com o Koda Cut.
+
+Exemplo de IDs:
+image:logo
+image:meme_chocado
+audio:impacto
+audio:risada
+video:broll_praia
+
+Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
+""";
+    }
+
+    private void copyText(String text, String message) {
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
+        JOptionPane.showMessageDialog(this, message, "Koda Cut", JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private JPanel buildHomePanel() {
-        JPanel wrap = page("Koda Cut", "Escolha um fluxo e deixe o PC executar a edicao localmente.");
+        JPanel wrap = page("Koda Cut", "Crie vídeos para diferentes formatos e estilos em um fluxo simples.");
+
+        JPanel top = new JPanel(new BorderLayout(12,12));
+        top.setOpaque(false);
+        JPanel hero = panelBox();
+        hero.setLayout(new BorderLayout(18,18));
+        JPanel heroText = new JPanel();
+        heroText.setOpaque(false);
+        heroText.setLayout(new BoxLayout(heroText, BoxLayout.Y_AXIS));
+        heroText.add(label("Comece um novo projeto", 28, Font.BOLD));
+        heroText.add(Box.createVerticalStrut(8));
+        JTextArea desc = infoArea("Adicione seu conteúdo, escolha o tipo de vídeo e o estilo de edição. O Koda Cut organiza o projeto e prepara tudo para você conversar com um assistente de IA compatível.", 4);
+        heroText.add(desc);
+        JButton start = button("NOVO PROJETO");
+        stylePrimary(start);
+        start.addActionListener(e -> { cardLayout.show(cards, "GUIA"); highlightNav("GUIA"); });
+        hero.add(heroText, BorderLayout.CENTER);
+        hero.add(start, BorderLayout.SOUTH);
+        top.add(hero, BorderLayout.CENTER);
 
         JPanel grid = new JPanel(new GridLayout(2,3,12,12));
         grid.setOpaque(false);
-        grid.add(homeCard("EDICAO AUTOMATICA", "Video + elementos + KodaScript. Renderiza horizontal, vertical, quadrado ou todos.", "AUTO"));
-        grid.add(homeCard("CANAL DE CORTES", "Link autorizado ou arquivo local. Transcreve e gera varios cortes automaticamente.", "CORTES"));
-        grid.add(homeCard("GAMEPLAY", "Perfil meme: zoom, freeze, PNG, SFX e legendas de destaque.", "GAMEPLAY"));
-        grid.add(homeCard("DARK / NARRADO", "Legenda completa, B-roll, ritmo narrativo e trilha com ducking.", "DARK"));
-        grid.add(homeCard("SHORTS / REELS", "9:16, safe zones e legendas fortes para conteudo curto.", "SHORTS"));
-        grid.add(homeCard("LOTE", "Renderize varios videos usando o mesmo KodaScript e configuracoes.", "LOTE"));
+        grid.add(homeCard("EDICAO AUTOMATICA", "Traga a edição gerada pelo assistente e renderize localmente.", "AUTO"));
+        grid.add(homeCard("CANAL DE CORTES", "Transforme conteúdo autorizado em vários cortes.", "CORTES"));
+        grid.add(homeCard("SHORTS / REELS", "Prepare conteúdo vertical com safe zones e legendas.", "SHORTS"));
+        grid.add(homeCard("ELEMENTOS", "Organize imagens, vídeos, áudios, músicas e B-rolls.", "ELEMENTOS"));
+        grid.add(homeCard("MEUS ESTILOS", "Escolha perfis de edição ou personalize o seu.", "ESTILOS"));
+        grid.add(homeCard("COMO USAR", "Veja o tutorial rápido novamente a qualquer momento.", "TUTORIAL"));
 
-        wrap.add(grid, BorderLayout.CENTER);
+        JPanel body = new JPanel(new BorderLayout(0,12));
+        body.setOpaque(false);
+        body.add(top, BorderLayout.NORTH);
+        body.add(grid, BorderLayout.CENTER);
+        wrap.add(body, BorderLayout.CENTER);
         return wrap;
     }
 
@@ -367,7 +604,7 @@ public class KodaCut extends JFrame {
     }
 
     private JPanel buildAutoPanel() {
-        JPanel wrap = page("Edicao Automatica", "Adicione o material, cole o KodaScript gerado pelo ChatGPT e clique em renderizar.");
+        JPanel wrap = page("Edicao Automatica", "Adicione o material, cole o KodaScript gerado pelo assistente de IA e clique em renderizar.");
 
         JPanel main = new JPanel(new GridLayout(1,2,12,0));
         main.setOpaque(false);
@@ -590,7 +827,7 @@ public class KodaCut extends JFrame {
 
         JTextArea help = infoArea(
             "Cada arquivo recebe um ID estavel. Ex.: boom.wav → audio:boom, logo.png → image:logo, praia.mp4 → video:praia. " +
-            "O ChatGPT usa esses IDs no KodaScript, entao o motor sabe exatamente qual arquivo colocar, em qual segundo e por quanto tempo.", 4);
+            "O assistente de IA usa esses IDs no KodaScript, entao o motor sabe exatamente qual arquivo colocar, em qual segundo e por quanto tempo.", 4);
         p.add(help, BorderLayout.SOUTH);
 
         wrap.add(p, BorderLayout.CENTER);
@@ -1145,7 +1382,7 @@ public class KodaCut extends JFrame {
         String text = buildManifestText();
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
         JOptionPane.showMessageDialog(this,
-            "Mapa copiado. Envie esse mapa junto do video para o ChatGPT.",
+            "Mapa do projeto copiado. Cole junto das instruções no assistente de sua preferência.",
             "Koda Cut", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -1241,7 +1478,7 @@ public class KodaCut extends JFrame {
     private Path savePromptInternal() throws IOException {
         String normalized = extractJson(promptArea.getText());
         if (!normalized.startsWith("{") || !normalized.endsWith("}")) {
-            throw new IOException("O KodaScript precisa conter um JSON. O ChatGPT pode enviar o JSON dentro de bloco de codigo.");
+            throw new IOException("O KodaScript precisa conter um JSON. O assistente de IA pode enviar o JSON dentro de bloco de codigo.");
         }
         Path p = root.resolve("projetos/ultimo.json");
         Files.writeString(p, normalized, StandardCharsets.UTF_8);
@@ -1311,7 +1548,7 @@ public class KodaCut extends JFrame {
     }
 
     private void applyProfile(String profile) {
-        stylePreset.setSelectedItem(profile);
+        if (!Objects.equals(stylePreset.getSelectedItem(), profile)) stylePreset.setSelectedItem(profile);
         switch (profile) {
             case "Gameplay / Meme" -> {
                 captionMode.setSelectedItem("Destaques");
