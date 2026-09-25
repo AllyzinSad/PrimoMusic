@@ -365,6 +365,13 @@ val portableZip by tasks.registering(Zip::class) {
     from(portableAppImage) {
         into("KodaMusic-3.11.0-Portable")
     }
+    from(rootProject.file("LICENSE")) {
+        into("KodaMusic-3.11.0-Portable")
+    }
+    from(rootProject.file("THIRD_PARTY-NOTICES-PRIMO.md")) {
+        into("KodaMusic-3.11.0-Portable")
+        rename { "CREDITOS-E-LICENCAS.md" }
+    }
 
     archiveFileName.set("KodaMusic-3.11.0-Portable.zip")
     destinationDirectory.set(rootProject.layout.projectDirectory.dir("release"))
