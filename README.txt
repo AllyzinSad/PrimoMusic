@@ -1,3 +1,37 @@
+KODA CUT v0.4 - SOURCE DE TESTE
+
+Esta versao foca em deixar o Koda Cut mais comercial e simples para novos clientes.
+
+NOVIDADES v0.4
+- onboarding em slides na primeira abertura;
+- pagina "Como usar" para rever o tutorial;
+- pagina "Novo Projeto" com tipo de conteudo, estilo e destino;
+- tipos amplos: gameplay, opiniao, podcast, vlog, review, tutorial, dark, storytelling, documentario, noticias, produto, institucional, imobiliario, gastronomia, fitness, viagem, musica, react, unboxing, Shorts/Reels e anuncios;
+- estilos: clean, dinamico, meme, cinematico, profissional, viral, minimalista, dark, energetico, storytelling e corporativo;
+- botoes "COPIAR INSTRUCOES PARA IA" e "COPIAR PROJETO PARA IA";
+- linguagem generica, sem marcas de servicos externos dentro do tutorial;
+- mapa de assets continua automatico;
+- o cliente conversa normalmente com um assistente compativel e traz a edicao de volta ao Koda Cut;
+- ABRIR-KODACUT.bat continua sendo o arquivo para testar;
+- BUILD-PORTABLE.bat continua sendo o arquivo para o proprio usuario gerar a versao portatil.
+
+FLUXO DO CLIENTE
+1. Abra ABRIR-KODACUT.bat.
+2. Veja o tutorial em slides.
+3. Entre em Novo Projeto.
+4. Escolha o tipo de conteudo, o estilo e o destino.
+5. Adicione seus arquivos.
+6. Clique em COPIAR INSTRUCOES PARA IA.
+7. Clique em COPIAR PROJETO PARA IA.
+8. Cole no assistente de sua preferencia e explique como quer o video.
+9. Quando a edicao estiver pronta, cole o KodaScript em Edicao Automatica.
+10. Renderize.
+
+IMPORTANTE
+Os PNGs, memes, musicas, logos e B-rolls nao fazem parte do produto. Cada cliente adiciona os proprios assets e o Koda Cut gera IDs automaticamente.
+
+============================================================
+
 KODA CUT v0.3 - AUTOMATIC VIDEO EDITOR
 =========================================
 
