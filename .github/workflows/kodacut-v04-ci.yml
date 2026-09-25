@@ -1,0 +1,56 @@
+name: Koda Cut v0.4 source check
+
+on:
+  push:
+    branches:
+      - kodacut-v0.4-source
+  workflow_dispatch:
+
+jobs:
+  validate-source:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Compile Java sources
+        shell: cmd
+        run: |
+          if not exist out mkdir out
+          javac -encoding UTF-8 --release 17 -d out src\kodacut\*.java
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              Write-Host "Syntax errors in $($_.Name)" -ForegroundColor Red
+              $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Verify startup files
+        shell: pwsh
+        run: |
+          $required = @(
+            "ABRIR-KODACUT.bat",
+            "BUILD-PORTABLE.bat",
+            "src/kodacut/KodaCut.java",
+            "src/kodacut/OnboardingDialog.java",
+            "scripts/editor.ps1"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Missing required file: $file" }
+          }
