@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Build Portable - Koda Cut v0.4
+title Build Portable - Koda Connect v0.5
 cd /d "%~dp0"
 
 where javac >nul 2>&1
@@ -43,7 +43,7 @@ jar --create --file build\KodaCut.jar -C out .
 if errorlevel 1 goto :erro
 
 echo Gerando app portatil...
-jpackage --type app-image --dest dist --name "Koda Cut" --input build --main-jar KodaCut.jar --main-class kodacut.KodaCut --vendor "Koda" --app-version 0.4 --icon assets\koda-cut.ico
+jpackage --type app-image --dest dist --name "Koda Cut" --input build --main-jar KodaCut.jar --main-class kodacut.KodaConnect --vendor "Koda" --java-options "--add-modules=jdk.httpserver" --app-version 0.5 --icon assets\koda-cut.ico
 if errorlevel 1 goto :erro
 
 echo Copiando motor e recursos...
