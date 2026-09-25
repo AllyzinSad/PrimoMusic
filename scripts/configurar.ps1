@@ -77,14 +77,20 @@ if (-not $whisper) {
 if (-not $whisper) {
     Write-Host "[Koda Cut] Baixando Whisper local para Windows x64..." -ForegroundColor Cyan
     $headers = @{ "User-Agent" = "KodaCut" }
-    $release = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/ggerganov/whisper.cpp/releases/latest"
+    $releases = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=12"
 
-    $asset = $release.assets | Where-Object { $_.name -eq "whisper-bin-x64.zip" } | Select-Object -First 1
-    if (-not $asset) {
-        $asset = $release.assets | Where-Object { $_.name -match "whisper.*bin.*x64.*\.zip$" -and $_.name -notmatch "cuda|cublas|openvino" } | Select-Object -First 1
+    $asset = $null
+    foreach ($release in $releases) {
+        $candidate = $release.assets | Where-Object { $_.name -eq "whisper-bin-x64.zip" } | Select-Object -First 1
+        if ($candidate) {
+            $asset = $candidate
+            Write-Host ("[Koda Cut] Whisper build: " + $release.tag_name) -ForegroundColor DarkGray
+            break
+        }
     }
+
     if (-not $asset) {
-        throw "Nao encontrei um pacote Windows x64 do whisper.cpp na release atual."
+        throw "Nao encontrei o pacote whisper-bin-x64.zip nas releases recentes do whisper.cpp."
     }
 
     $zip = Join-Path $Temp "whisper.zip"
