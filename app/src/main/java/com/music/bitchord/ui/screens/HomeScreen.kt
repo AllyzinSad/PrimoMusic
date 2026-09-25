@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -26,6 +27,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,7 +47,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
@@ -124,12 +129,7 @@ fun HomeScreen(
             contentPadding = contentPadding,
         ) {
             item {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
-                )
+                KodaHomeHeader(title = title)
             }
             if (!signedIn && onSignIn != null) {
                 item {
@@ -162,7 +162,7 @@ fun HomeScreen(
                         shelves = state.data,
                         onItemClick = onItemClick,
                         onItemLongPress = onItemLongPress,
-                        firstIsHero = !recentlyPlayedLoading,
+                        firstIsHero = false,
                         recentsViewType = recentsViewType,
                         onRecentsViewTypeToggle = {
                             AppSettings.setHomeRecentsViewType(
@@ -196,6 +196,66 @@ fun HomeScreen(
             }.collect { (lastVisible, total) ->
                 if (!loadingMore && total > 0 && lastVisible >= total - 3) loadMore()
             }
+        }
+    }
+}
+
+@Composable
+private fun KodaHomeHeader(
+    title: String,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp)
+            .height(154.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFF151020),
+                            Color(0xFF0D0F17),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
+                        ),
+                    ),
+                )
+                .padding(20.dp),
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.CenterStart),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(
+                    text = "KODA MUSIC",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+                Text(
+                    text = "Sua música, do seu jeito.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+            Image(
+                painter = painterResource(R.drawable.koda_mark),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(72.dp),
+            )
         }
     }
 }

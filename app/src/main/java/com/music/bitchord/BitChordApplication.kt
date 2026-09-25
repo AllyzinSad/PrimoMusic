@@ -111,7 +111,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * Artwork loading, which was previously left entirely on Coil's defaults.
+     * Koda artwork loading: deliberately bounded so cover art does not monopolise RAM.
      *
      * The defaults aren't unreasonable, but the disk cache is sized at 2% of
      * free space — which on a full phone is the 10MB floor, a few screens of
@@ -123,18 +123,18 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
         ImageLoader.Builder(context)
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.20)
+                    .maxSizePercent(context, 0.08)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100L * 1024 * 1024)
+                    .maxSizeBytes(64L * 1024 * 1024)
                     .build()
             }
             // Covers arriving with a hard cut read as the list flickering as
             // it scrolls; a short fade reads as them developing.
-            .crossfade(200)
+            .crossfade(90)
             .build()
 
     private fun initLastfm() {

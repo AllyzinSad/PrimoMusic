@@ -164,28 +164,18 @@ fun MiniPlayer(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
-    // percent rather than a dp figure, so the corner stays exactly half the
-    // height if the row's contents ever change it — which is what keeps a pill
-    // a pill instead of a rounded rectangle. Same idiom as [FloatingBottomBar]
-    // directly below it, so the two shapes are the same family.
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = RoundedCornerShape(18.dp)
     Box(
         modifier = modifier
             .padding(horizontal = PAGE_GUTTER)
             .clip(shape)
-            .then(
-                if (reduceDynamicBlur) {
-                    Modifier.background(MaterialTheme.colorScheme.surface)
-                } else {
-                    Modifier.optimizedHazeEffect(
-                        state = hazeState,
-                        style = HazeMaterials.thin(MaterialTheme.colorScheme.surface),
-                    )
-                },
+            .background(MaterialTheme.colorScheme.surface)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                shape,
             )
-            .border(0.5.dp, Color.White.copy(alpha = 0.10f), shape)
             // Deliberately silent: the whole bar is the target, so it catches
             // stray taps meant for the page behind it, and the sheet rising is
             // its own confirmation. The glyphs on it still buzz.
@@ -253,7 +243,7 @@ fun MiniPlayer(
                     Icon(
                         imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
-                        tint = MaterialTheme.colorScheme.onBackground,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(GLYPH_SIZE),
                     )
                 }
