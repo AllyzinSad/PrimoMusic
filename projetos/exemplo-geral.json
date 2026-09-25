@@ -1,12 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "fps": 60,
   "duracao_saida": 20,
-  "audio": {
-    "reduzir_ruido": true,
-    "normalizar": true,
-    "volume": 1.0
-  },
   "musica": {
     "asset": "",
     "volume": 0.08
@@ -15,9 +10,9 @@
     {
       "inicio": 0.0,
       "fim": 2.0,
-      "texto": "ABERTURA DO VIDEO",
+      "texto": "O PLANO COMECOU",
       "texto_posicao": "top",
-      "zoom": 1.08,
+      "zoom": 1.10,
       "elementos": [
         {
           "asset": "image:logo",
@@ -55,6 +50,7 @@
       "texto": "IMPACTO!",
       "texto_posicao": "center",
       "zoom": 1.22,
+      "shake": 10,
       "freeze": true,
       "audios": [
         {
