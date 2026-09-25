@@ -56,3 +56,21 @@ jobs:
         run: |
           if not exist build mkdir build
           jar --create --file build\KodaCut.jar -C out .
+
+
+      - name: Verify Koda Cut v0.3 files
+        shell: pwsh
+        run: |
+          $required = @(
+            "scripts/editor.ps1",
+            "scripts/configurar.ps1",
+            "scripts/transcrever.ps1",
+            "scripts/importar-youtube.ps1",
+            "scripts/cortes.ps1",
+            "assets/koda-cut-icon.svg",
+            "assets/koda-cut-logo.svg"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Missing required file: $file" }
+          }
+          Write-Host "Koda Cut v0.3 source set OK"
