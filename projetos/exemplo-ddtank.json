@@ -1,0 +1,71 @@
+{
+  "fps": 60,
+  "duracao_saida": 20,
+  "audio": {
+    "reduzir_ruido": true,
+    "normalizar": true,
+    "volume": 1.0
+  },
+  "musica": {
+    "arquivo": "",
+    "volume": 0.08
+  },
+  "eventos": [
+    {
+      "inicio": 0.0,
+      "fim": 2.0,
+      "texto": "O PLANO COMECOU",
+      "texto_posicao": "top",
+      "png": "pngtuber\\thinking.png",
+      "png_posicao": "bottom-left",
+      "png_largura": 360,
+      "zoom": 1.12,
+      "sfx": "whoosh",
+      "sfx_volume": 0.55
+    },
+    {
+      "inicio": 7.0,
+      "fim": 8.5,
+      "texto": "AGORA VAI",
+      "texto_posicao": "top",
+      "png": "pngtuber\\power.png",
+      "png_posicao": "bottom-left",
+      "png_largura": 380,
+      "zoom": 1.28,
+      "sfx": "impacto",
+      "sfx_volume": 0.75
+    },
+    {
+      "inicio": 11.0,
+      "fim": 13.8,
+      "texto": "VOU FICAR DE LONGE MESMO",
+      "texto_posicao": "bottom",
+      "png": "pngtuber\\thinking.png",
+      "png_posicao": "bottom-left",
+      "png_largura": 360,
+      "zoom": 1.08
+    },
+    {
+      "inicio": 19.15,
+      "fim": 19.7,
+      "png": "pngtuber\\stressed.png",
+      "png_posicao": "bottom-left",
+      "png_largura": 380,
+      "sfx": "tick",
+      "sfx_volume": 0.32
+    },
+    {
+      "inicio": 19.7,
+      "fim": 20.0,
+      "texto": "NOSSA???",
+      "texto_posicao": "center",
+      "png": "pngtuber\\shocked.png",
+      "png_posicao": "bottom-left",
+      "png_largura": 400,
+      "zoom": 1.25,
+      "freeze": true,
+      "sfx": "scratch",
+      "sfx_volume": 0.65
+    }
+  ]
+}
