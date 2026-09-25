@@ -587,7 +587,7 @@ public class KodaConnect extends JFrame {
 
     private String optional(String v,String fallback){ return v==null||v.isBlank()?fallback:v; }
     private String dec(String s){ return URLDecoder.decode(s,StandardCharsets.UTF_8); }
-    private String unescape(String s){ return s.replace("\\\\"","\\\"").replace("\\\\","\\"); }
+    private String unescape(String s){ return s.replace("\\\"", "\"").replace("\\\\", "\\"); }
 
     private String jsonArray(List<String> values) {
         StringBuilder sb=new StringBuilder("[");
