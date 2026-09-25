@@ -128,6 +128,10 @@ Write-Host "[Koda Cut] Gerando SFX originais..." -ForegroundColor Cyan
 & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=520:duration=0.12:sample_rate=48000" -af "volume=0.35,afade=t=out:st=0.04:d=0.08" (Join-Path $Effects "pop.wav")
 & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i "anoisesrc=color=white:duration=0.16:sample_rate=48000" -af "highpass=f=1400,lowpass=f=7600,volume=0.18,afade=t=out:st=0.05:d=0.11" (Join-Path $Effects "snap.wav")
 
+$DefaultAudioLibrary = Join-Path $Root "biblioteca\audios"
+New-Item -ItemType Directory -Force -Path $DefaultAudioLibrary | Out-Null
+Get-ChildItem $Effects -Filter "*.wav" | ForEach-Object { Copy-Item $_.FullName (Join-Path $DefaultAudioLibrary $_.Name) -Force }
+
 $enc = (& $ffmpeg -hide_banner -encoders 2>&1 | Out-String)
 if ($enc -match "h264_nvenc") {
     Write-Host "[OK] NVIDIA NVENC encontrado." -ForegroundColor Green
