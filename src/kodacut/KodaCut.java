@@ -773,10 +773,10 @@ public class KodaCut extends JFrame {
     private JPanel buildRenderPanel() {
         JPanel wrap = page("Renderizacao", "Presets pensados para o seu Ryzen 5 4500 + GTX 1660 Super + 16 GB.");
 
-        JPanel p = panelBox();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.add(fieldGroup("Qualidade", quality));
-        p.add(Box.createVerticalStrut(14));
+        JPanel controls = panelBox();
+        controls.setLayout(new BoxLayout(controls, BoxLayout.Y_AXIS));
+        controls.add(fieldGroup("Qualidade", quality));
+        controls.add(Box.createVerticalStrut(14));
 
         JButton setup = button("CONFIGURAR / ATUALIZAR FERRAMENTAS");
         JButton nvenc = button("TESTAR NVIDIA NVENC");
@@ -786,16 +786,30 @@ public class KodaCut extends JFrame {
         nvenc.addActionListener(e -> testNvenc());
         finalFolder.addActionListener(e -> openPath(root.resolve("final")));
         cache.addActionListener(e -> clearCache());
-        p.add(setup); p.add(Box.createVerticalStrut(7));
-        p.add(nvenc); p.add(Box.createVerticalStrut(7));
-        p.add(finalFolder); p.add(Box.createVerticalStrut(7));
-        p.add(cache); p.add(Box.createVerticalStrut(14));
+        controls.add(setup); controls.add(Box.createVerticalStrut(7));
+        controls.add(nvenc); controls.add(Box.createVerticalStrut(7));
+        controls.add(finalFolder); controls.add(Box.createVerticalStrut(7));
+        controls.add(cache); controls.add(Box.createVerticalStrut(14));
 
-        p.add(infoArea(
+        controls.add(infoArea(
             "Balanceado usa H.264 NVENC quando disponivel. A GTX 1660 Super faz a codificacao e reduz a carga da CPU. " +
             "O Koda Cut evita arquivos intermediarios grandes e limpa a pasta temp para poupar o SSD de 256 GB.", 6));
 
-        wrap.add(p, BorderLayout.CENTER);
+        JPanel console = panelBox();
+        console.setLayout(new BorderLayout(0,8));
+        console.add(label("Console / progresso", 13, Font.BOLD), BorderLayout.NORTH);
+        logArea.setEditable(false);
+        logArea.setBackground(new Color(8,8,8));
+        logArea.setForeground(new Color(215,215,215));
+        logArea.setCaretColor(FG);
+        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        console.add(new JScrollPane(logArea), BorderLayout.CENTER);
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, controls, console);
+        split.setResizeWeight(0.34);
+        split.setDividerLocation(380);
+        split.setBorder(null);
+        wrap.add(split, BorderLayout.CENTER);
         return wrap;
     }
 
