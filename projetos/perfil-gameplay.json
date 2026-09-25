@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "fps": 60,
+  "duracao_saida": 0,
+  "musica": {"asset":"","volume":0.06},
+  "timeline": [
+    {
+      "inicio": 7.0,
+      "fim": 8.2,
+      "texto": "AGORA VAI",
+      "texto_posicao": "top",
+      "zoom": 1.20,
+      "shake": 6,
+      "audios": [{"asset":"audio:impacto","at":0.0,"volume":0.70}]
+    }
+  ]
+}
