@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-echo Gerando instaladores EXE e MSI do Primo Music 3.10.9...
+echo Gerando instaladores EXE e MSI do Koda Music 3.11.0...
 echo O mpv sera incluido automaticamente no pacote.
 call gradlew.bat :desktop:packageExe :desktop:packageMsi
 if errorlevel 1 (

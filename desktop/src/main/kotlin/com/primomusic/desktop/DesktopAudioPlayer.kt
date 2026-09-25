@@ -11,10 +11,12 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
 
@@ -142,12 +144,29 @@ class DesktopAudioPlayer(
     var onEnd: (() -> Unit)? = null
 
     private val generation = AtomicLong(0L)
+    private val closed = AtomicBoolean(false)
+    private val shutdownHook = Thread(
+        { close() },
+        "KodaMusic-player-shutdown",
+    ).apply { isDaemon = false }
+
+    init {
+        Runtime.getRuntime().addShutdownHook(shutdownHook)
+    }
+
     private val launchSerial = AtomicLong(0L)
     private val volumeGeneration = AtomicLong(0L)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
     private var activePlayJob: Job? = null
+
+    @Volatile
+    private var gamerMode = false
+
+    fun setGamerMode(enabled: Boolean) {
+        gamerMode = enabled
+    }
 
     suspend fun play(
         videoId: String,
@@ -397,7 +416,7 @@ class DesktopAudioPlayer(
                 .incrementAndGet()
 
         thread(
-            name = "PrimoMusic-volume",
+            name = "KodaMusic-volume",
             isDaemon = true,
         ) {
             Thread.sleep(45)
@@ -486,14 +505,30 @@ class DesktopAudioPlayer(
     }
 
     fun close() {
+        if (!closed.compareAndSet(false, true)) {
+            return
+        }
+
         generation.incrementAndGet()
+
+        activePlayJob?.cancel()
+        activePlayJob = null
 
         stopProcess(
             expected = true,
         )
 
+        currentVideoId = null
+        currentUrl = null
+        currentStream = null
+        candidates = emptyList()
+        failedUrls = emptySet()
+        updater = null
+        onEnd = null
+
         directResolver.close()
         newPipeResolver.close()
+        scope.cancel()
     }
 
     /**
@@ -925,7 +960,7 @@ class DesktopAudioPlayer(
 
         thread(
             name =
-                "PrimoMusic-resume",
+                "KodaMusic-resume",
             isDaemon =
                 true,
         ) {
@@ -977,7 +1012,7 @@ class DesktopAudioPlayer(
 
         thread(
             name =
-                "PrimoMusic-restart",
+                "KodaMusic-restart",
             isDaemon =
                 true,
         ) {
@@ -1063,7 +1098,7 @@ class DesktopAudioPlayer(
                 "--ytdl=no",
 
                 "--cache=yes",
-                "--cache-secs=20",
+                "--cache-secs=${if (gamerMode) 8 else 20}",
                 "--cache-pause=yes",
                 "--network-timeout=12",
 
@@ -1184,7 +1219,7 @@ class DesktopAudioPlayer(
     ) {
         thread(
             name =
-                "PrimoMusic-mpv-log",
+                "KodaMusic-mpv-log",
             isDaemon =
                 true,
         ) {
@@ -1258,7 +1293,7 @@ class DesktopAudioPlayer(
     ) {
         thread(
             name =
-                "PrimoMusic-position",
+                "KodaMusic-position",
             isDaemon =
                 true,
         ) {
@@ -1284,7 +1319,7 @@ class DesktopAudioPlayer(
                 }
 
                 Thread.sleep(
-                    250
+                    if (gamerMode) 650 else 250
                 )
             }
         }
@@ -1297,7 +1332,7 @@ class DesktopAudioPlayer(
     ) {
         thread(
             name =
-                "PrimoMusic-mpv-watch",
+                "KodaMusic-mpv-watch",
             isDaemon =
                 true,
         ) {
@@ -1437,39 +1472,67 @@ class DesktopAudioPlayer(
     private fun stopProcess(
         expected: Boolean,
     ) {
-        val active =
-            process
+        val active = process
 
-        if (
-            active != null &&
-            active.isAlive
-        ) {
+        if (active != null && active.isAlive) {
             if (expected) {
-                expectedStopSerial =
-                    launchSerial.get()
+                expectedStopSerial = launchSerial.get()
+            }
+
+            // Ask mpv to exit cleanly first. If IPC is unavailable or mpv is
+            // stuck, fall back to terminating only the process tree created by
+            // this player instance. We deliberately never use a global
+            // taskkill /IM mpv.exe because that could kill another user's mpv.
+            runCatching {
+                if (currentPipePath != null) {
+                    sendJsonIpc("""{"command":["quit"]}""")
+                }
             }
 
             runCatching {
-                active.destroy()
+                active.waitFor(300, TimeUnit.MILLISECONDS)
             }
 
-            runCatching {
-                if (
-                    !active.waitFor(
-                        450,
-                        TimeUnit.MILLISECONDS,
-                    )
-                ) {
-                    active.destroyForcibly()
+            if (active.isAlive) {
+                val root = active.toHandle()
+                val descendants =
+                    runCatching { root.descendants().toList().asReversed() }
+                        .getOrDefault(emptyList())
+
+                descendants.forEach { child ->
+                    runCatching {
+                        if (child.isAlive) child.destroy()
+                    }
+                }
+
+                runCatching {
+                    if (root.isAlive) root.destroy()
+                }
+
+                runCatching {
+                    active.waitFor(700, TimeUnit.MILLISECONDS)
+                }
+
+                descendants.forEach { child ->
+                    runCatching {
+                        if (child.isAlive) child.destroyForcibly()
+                    }
+                }
+
+                runCatching {
+                    if (root.isAlive) root.destroyForcibly()
+                }
+
+                // Do not return from close() while the mpv process we own is
+                // still alive. A bounded wait keeps shutdown deterministic.
+                runCatching {
+                    active.waitFor(1_500, TimeUnit.MILLISECONDS)
                 }
             }
         }
 
-        process =
-            null
-
-        currentPipePath =
-            null
+        process = null
+        currentPipePath = null
     }
 
     /**
