@@ -34,8 +34,8 @@ public class KodaCut extends JFrame {
     private final JTextField outputField = new JTextField();
 
     private final JComboBox<String> outputMode = new JComboBox<>(new String[]{
-        "Horizontal 16:9 (YouTube)",
-        "Vertical 9:16 (Reels / Shorts / Stories)",
+        "Horizontal 16:9",
+        "Vertical 9:16 (video curto)",
         "Quadrado 1:1",
         "Horizontal + Vertical",
         "Gerar todos"
@@ -52,7 +52,7 @@ public class KodaCut extends JFrame {
 
     private final JComboBox<String> stylePreset = new JComboBox<>(new String[]{
         "Personalizado", "Gameplay / Meme", "Dark / Narrado",
-        "Podcast / Cortes", "Shorts / Reels", "Clean / Documentario", "Cinematico"
+        "Podcast / Cortes", "Video curto / Vertical", "Clean / Documentario", "Cinematico"
     });
 
     private final JComboBox<String> contentType = new JComboBox<>(new String[]{
@@ -60,7 +60,7 @@ public class KodaCut extends JFrame {
         "Review / Analise", "Tutorial / Educacional", "Dark / Narrado",
         "Storytelling", "Documentario", "Noticias / Informativo",
         "Produto / E-commerce", "Institucional", "Imobiliario", "Gastronomia",
-        "Fitness", "Viagem", "Musica", "React", "Unboxing", "Shorts / Reels",
+        "Fitness", "Viagem", "Musica", "React", "Unboxing", "Video curto / Vertical",
         "Anuncio / Redes sociais"
     });
 
@@ -70,8 +70,8 @@ public class KodaCut extends JFrame {
     });
 
     private final JComboBox<String> destination = new JComboBox<>(new String[]{
-        "YouTube horizontal 16:9", "Vertical 9:16", "Instagram Feed 1:1",
-        "Stories 9:16", "Podcast completo", "Corte curto", "Anuncio"
+        "Horizontal 16:9", "Vertical 9:16", "Feed quadrado 1:1",
+        "Story vertical 9:16", "Podcast completo", "Corte curto", "Anuncio"
     });
 
     private final JTextArea guidedDescription = new JTextArea();
@@ -84,7 +84,7 @@ public class KodaCut extends JFrame {
         "Desligada", "Completa", "Destaques", "Palavra por palavra"
     });
     private final JComboBox<String> language = new JComboBox<>(new String[]{"pt", "auto", "en", "es"});
-    private final JCheckBox safeZone = new JCheckBox("Safe zone para Reels/TikTok", true);
+    private final JCheckBox safeZone = new JCheckBox("Safe zone para plataformas verticais", true);
 
     private final JCheckBox noiseReduction = new JCheckBox("Reducao de ruido", true);
     private final JCheckBox normalizeAudio = new JCheckBox("Normalizar voz", true);
@@ -195,10 +195,6 @@ public class KodaCut extends JFrame {
         addNav("Novo Projeto", "GUIA", "NP");
         addNav("Edicao Automatica", "AUTO", "EA");
         addNav("Canal de Cortes", "CORTES", "CC");
-        addNav("Gameplay", "GAMEPLAY", "GM");
-        addNav("Dark / Narrado", "DARK", "DK");
-        addNav("Podcast / Cortes", "PODCAST", "PC");
-        addNav("Shorts / Reels", "SHORTS", "SR");
         addNav("Elementos", "ELEMENTOS", "EL");
         addNav("Legendas", "LEGENDAS", "CC");
         addNav("Audio", "AUDIO", "AU");
@@ -236,7 +232,7 @@ public class KodaCut extends JFrame {
         cards.add(buildPresetPanel(
             "SHORTS / REELS",
             "9:16, safe zones, legenda grande, enquadramento vertical e ritmo mais agressivo para conteudo curto.",
-            "Shorts / Reels"), "SHORTS");
+            "Video curto / Vertical"), "SHORTS");
         cards.add(buildAssetsPanel(), "ELEMENTOS");
         cards.add(buildCaptionsPanel(), "LEGENDAS");
         cards.add(buildAudioPanel(), "AUDIO");
@@ -788,7 +784,7 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
                 "• Legenda completa por padrao\n• Whisper local\n• B-roll e imagens da biblioteca\n• Trilha baixa com ducking\n• Ritmo limpo, sem efeitos exagerados\n\nIdeal para historias, curiosidades, documentarios curtos e canais dark.";
             case "Podcast / Cortes" ->
                 "• Transcricao completa\n• Canal de Cortes com selecao automatica\n• Vertical ou horizontal\n• Legenda completa ou destaques\n• Inicio do clipe puxado para a frase mais forte\n\nIdeal para podcasts, entrevistas e lives.";
-            case "Shorts / Reels" ->
+            case "Video curto / Vertical" ->
                 "• 1080x1920\n• Safe zone para botoes das plataformas\n• Fundo borrado ou crop\n• Legendas grandes\n• Render rapido com NVENC\n\nIdeal para Reels, Shorts, TikTok e Stories.";
             default ->
                 "Perfil de edicao do Koda Cut.";
@@ -894,8 +890,8 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
         JPanel wrap = page("Formato", "Um mesmo projeto pode gerar YouTube, Reels/Stories/Shorts e quadrado.");
 
         JComboBox<String> formatOutput = new JComboBox<>(new String[]{
-            "Horizontal 16:9 (YouTube)",
-            "Vertical 9:16 (Reels / Shorts / Stories)",
+            "Horizontal 16:9",
+            "Vertical 9:16 (video curto)",
             "Quadrado 1:1",
             "Horizontal + Vertical",
             "Gerar todos"
@@ -904,7 +900,7 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
             "Preservar video + fundo borrado",
             "Crop central 9:16"
         });
-        JCheckBox formatSafe = new JCheckBox("Safe zone para Reels/TikTok", safeZone.isSelected());
+        JCheckBox formatSafe = new JCheckBox("Safe zone para plataformas verticais", safeZone.isSelected());
 
         formatOutput.setSelectedIndex(outputMode.getSelectedIndex());
         formatVertical.setSelectedIndex(verticalMode.getSelectedIndex());
@@ -945,7 +941,7 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
 
         JComboBox<String> stylesPagePreset = new JComboBox<>(new String[]{
             "Personalizado", "Gameplay / Meme", "Dark / Narrado",
-            "Podcast / Cortes", "Shorts / Reels", "Clean / Documentario", "Cinematico"
+            "Podcast / Cortes", "Video curto / Vertical", "Clean / Documentario", "Cinematico"
         });
         stylesPagePreset.setSelectedItem(stylePreset.getSelectedItem());
         stylesPagePreset.addActionListener(e -> {
@@ -966,7 +962,7 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
         gameplay.addActionListener(e -> applyProfile("Gameplay / Meme"));
         dark.addActionListener(e -> applyProfile("Dark / Narrado"));
         podcast.addActionListener(e -> applyProfile("Podcast / Cortes"));
-        shorts.addActionListener(e -> applyProfile("Shorts / Reels"));
+        shorts.addActionListener(e -> applyProfile("Video curto / Vertical"));
         p.add(gameplay); p.add(Box.createVerticalStrut(7));
         p.add(dark); p.add(Box.createVerticalStrut(7));
         p.add(podcast); p.add(Box.createVerticalStrut(7));
@@ -1541,7 +1537,7 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
         if (s.startsWith("Gameplay")) return "gameplay";
         if (s.startsWith("Dark")) return "dark";
         if (s.startsWith("Podcast")) return "podcast";
-        if (s.startsWith("Shorts")) return "shorts";
+        if (s.startsWith("Video curto")) return "shorts";
         if (s.startsWith("Clean")) return "clean";
         if (s.startsWith("Cinematico")) return "cinematico";
         return "personalizado";
@@ -1570,7 +1566,7 @@ Você pode conversar comigo e sugerir ajustes antes de gerar a edição final.
                 outputMode.setSelectedIndex(1);
                 safeZone.setSelected(true);
             }
-            case "Shorts / Reels" -> {
+            case "Video curto / Vertical" -> {
                 captionMode.setSelectedItem("Completa");
                 outputMode.setSelectedIndex(1);
                 verticalMode.setSelectedIndex(0);
