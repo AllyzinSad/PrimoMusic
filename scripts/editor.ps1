@@ -240,7 +240,8 @@ if ($cfg.PSObject.Properties.Name -contains "timeline") {
     $events = @()
 }
 
-$musicCfg = GP $cfg "musica" $null
+$musicCfg = $null
+if ($cfg.PSObject.Properties.Name -contains "musica") { $musicCfg = $cfg.musica }
 $fps = [int](GP $cfg "fps" 60)
 $limit = [double](GP $cfg "duracao_saida" 0)
 
