@@ -1,0 +1,35 @@
+name: Koda Connect beta check
+
+on:
+  push:
+    branches:
+      - koda-connect-beta-source
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Compile Koda Connect
+        shell: cmd
+        run: |
+          if not exist out-connect mkdir out-connect
+          javac -encoding UTF-8 --release 17 --add-modules jdk.httpserver -d out-connect src\kodaconnect\*.java
+      - name: Verify beta files
+        shell: pwsh
+        run: |
+          $required = @(
+            "ABRIR-KODA-CONNECT.bat",
+            "BUILD-KODA-CONNECT.bat",
+            "KODA-CONNECT-README.txt",
+            "src/kodaconnect/KodaConnect.java",
+            "scripts/editor.ps1"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Missing required file: $file" }
+          }
