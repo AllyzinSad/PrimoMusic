@@ -11,17 +11,34 @@ import java.nio.file.*;
 import java.text.Normalizer;
 import java.util.*;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class KodaCut extends JFrame {
     private final Path root;
+
+    private static final Color BG = new Color(10, 10, 10);
+    private static final Color PANEL = new Color(21, 21, 21);
+    private static final Color FIELD = new Color(32, 32, 32);
+    private static final Color FG = new Color(245, 245, 245);
+    private static final Color MUTED = new Color(158, 158, 158);
+    private static final Color LINE = new Color(55, 55, 55);
+
+    private final CardLayout cardLayout = new CardLayout();
+    private final JPanel cards = new JPanel(cardLayout);
+    private final JPanel sidebar = new JPanel();
+    private final LinkedHashMap<String, JButton> navButtons = new LinkedHashMap<>();
+    private boolean sidebarCollapsed = false;
 
     private final JTextField mainVideoField = new JTextField();
     private final JTextField outputField = new JTextField();
 
     private final JComboBox<String> outputMode = new JComboBox<>(new String[]{
-        "Horizontal (YouTube 16:9)",
-        "Vertical (Reels / Shorts / Stories 9:16)",
-        "Gerar as duas versoes"
+        "Horizontal 16:9 (YouTube)",
+        "Vertical 9:16 (Reels / Shorts / Stories)",
+        "Quadrado 1:1",
+        "Horizontal + Vertical",
+        "Gerar todos"
     });
 
     private final JComboBox<String> verticalMode = new JComboBox<>(new String[]{
@@ -33,15 +50,45 @@ public class KodaCut extends JFrame {
         "Balanceado (recomendado)", "ECO", "Qualidade"
     });
 
+    private final JComboBox<String> stylePreset = new JComboBox<>(new String[]{
+        "Personalizado", "Gameplay / Meme", "Dark / Narrado",
+        "Podcast / Cortes", "Shorts / Reels", "Clean / Documentario", "Cinematico"
+    });
+
     private final JTextArea promptArea = new JTextArea();
     private final JTextArea logArea = new JTextArea();
 
+    private final JCheckBox autoTranscribe = new JCheckBox("Transcrever automaticamente", true);
+    private final JComboBox<String> captionMode = new JComboBox<>(new String[]{
+        "Desligada", "Completa", "Destaques", "Palavra por palavra"
+    });
+    private final JComboBox<String> language = new JComboBox<>(new String[]{"pt", "auto", "en", "es"});
+    private final JCheckBox safeZone = new JCheckBox("Safe zone para Reels/TikTok", true);
+
+    private final JCheckBox noiseReduction = new JCheckBox("Reducao de ruido", true);
+    private final JCheckBox normalizeAudio = new JCheckBox("Normalizar voz", true);
+    private final JCheckBox ducking = new JCheckBox("Ducking automatico da musica", true);
+    private final JSpinner voiceVolume = new JSpinner(new SpinnerNumberModel(1.0, 0.0, 3.0, 0.05));
+    private final JSpinner musicVolume = new JSpinner(new SpinnerNumberModel(0.08, 0.0, 1.0, 0.01));
+
     private final JButton renderButton = new JButton("EDITAR / RENDERIZAR");
-    private final JButton setupButton = new JButton("CONFIGURAR FFmpeg");
-    private final JButton openFinalButton = new JButton("ABRIR PASTA FINAL");
+    private final JButton setupButton = new JButton("CONFIGURAR FERRAMENTAS");
 
     private final AssetTableModel assetModel = new AssetTableModel();
     private final JTable assetTable = new JTable(assetModel);
+
+    private final JTextField cutsUrlField = new JTextField();
+    private final JTextField cutsSourceField = new JTextField();
+    private final JTextArea cutsPromptArea = new JTextArea();
+    private final JCheckBox rightsCheck = new JCheckBox("Confirmo que tenho permissao para usar/reutilizar este conteudo");
+    private final JSpinner cutCount = new JSpinner(new SpinnerNumberModel(6, 1, 30, 1));
+    private final JSpinner cutMin = new JSpinner(new SpinnerNumberModel(35, 10, 600, 5));
+    private final JSpinner cutMax = new JSpinner(new SpinnerNumberModel(70, 10, 900, 5));
+    private final JComboBox<String> cutFormat = new JComboBox<>(new String[]{"Vertical 9:16", "Horizontal 16:9"});
+    private final JComboBox<String> cutCaptionMode = new JComboBox<>(new String[]{"Completa", "Destaques", "Desligada"});
+
+    private final DefaultListModel<Path> batchModel = new DefaultListModel<>();
+    private final JList<Path> batchList = new JList<>(batchModel);
 
     private static final Set<String> VIDEO_EXT = Set.of(
         "mp4","mov","mkv","webm","avi","m4v","wmv","ts"
@@ -54,15 +101,22 @@ public class KodaCut extends JFrame {
     );
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new KodaCut().setVisible(true));
+        SwingUtilities.invokeLater(() -> {
+            UIManager.put("ToolTip.background", FIELD);
+            UIManager.put("ToolTip.foreground", FG);
+            KodaCut app = new KodaCut();
+            app.setVisible(true);
+        });
     }
 
     public KodaCut() {
         root = detectRoot();
         ensureFolders();
+        setIconImage(KodaIcon.createIcon(256));
         buildUi();
         scanLibrary();
         loadExample();
+        applyProfile("Gameplay / Meme");
     }
 
     private Path detectRoot() {
@@ -81,271 +135,715 @@ public class KodaCut extends JFrame {
     }
 
     private void ensureFolders() {
+        String[] dirs = {
+            "biblioteca/videos","biblioteca/imagens","biblioteca/audios",
+            "projetos","final","downloads","transcricoes","temp","tools","assets"
+        };
         try {
-            Files.createDirectories(root.resolve("biblioteca").resolve("videos"));
-            Files.createDirectories(root.resolve("biblioteca").resolve("imagens"));
-            Files.createDirectories(root.resolve("biblioteca").resolve("audios"));
-            Files.createDirectories(root.resolve("projetos"));
-            Files.createDirectories(root.resolve("final"));
+            for (String d : dirs) Files.createDirectories(root.resolve(d));
         } catch (IOException e) {
             throw new RuntimeException("Nao foi possivel criar as pastas do Koda Cut: " + e.getMessage(), e);
         }
     }
 
     private void buildUi() {
-        Color bg = new Color(11,11,11);
-        Color panel = new Color(23,23,23);
-        Color field = new Color(34,34,34);
-        Color fg = new Color(245,245,245);
-        Color muted = new Color(160,160,160);
-
-        setTitle("Koda Cut v0.2");
+        setTitle("Koda Cut v0.3");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(1120, 780));
-        setSize(1240, 880);
+        setMinimumSize(new Dimension(1180, 760));
+        setSize(1380, 900);
         setLocationRelativeTo(null);
-        getContentPane().setBackground(bg);
-        setLayout(new BorderLayout(12,12));
+        getContentPane().setBackground(BG);
+        setLayout(new BorderLayout());
 
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(bg);
-        header.setBorder(new EmptyBorder(16,20,0,20));
+        add(buildHeader(), BorderLayout.NORTH);
 
-        JLabel brand = new JLabel("KODA CUT");
-        brand.setForeground(fg);
-        brand.setFont(new Font("SansSerif", Font.BOLD, 30));
-        header.add(brand, BorderLayout.WEST);
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG);
+        sidebar.setBackground(new Color(14,14,14));
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        sidebar.setBorder(new EmptyBorder(10,10,10,10));
+        sidebar.setPreferredSize(new Dimension(224, 100));
 
-        JLabel sub = new JLabel("Editor automatico local • videos, imagens e audios • FFmpeg + NVENC");
-        sub.setForeground(muted);
-        header.add(sub, BorderLayout.SOUTH);
-        add(header, BorderLayout.NORTH);
+        JButton collapse = navButton("≡  Recolher", "≡", null);
+        collapse.addActionListener(e -> toggleSidebar());
+        sidebar.add(collapse);
+        sidebar.add(Box.createVerticalStrut(8));
 
-        JTabbedPane tabs = new JTabbedPane();
-        tabs.setBackground(panel);
-        tabs.setForeground(fg);
-        tabs.addTab("PROJETO", buildProjectTab(bg, panel, field, fg, muted));
-        tabs.addTab("ARQUIVOS / ELEMENTOS", buildAssetsTab(bg, panel, field, fg, muted));
-        tabs.addTab("CONSOLE", buildConsoleTab(bg, panel, fg));
-        tabs.setBorder(new EmptyBorder(0,20,0,20));
-        add(tabs, BorderLayout.CENTER);
+        addNav("Inicio", "INICIO", "IN");
+        addNav("Edicao Automatica", "AUTO", "EA");
+        addNav("Canal de Cortes", "CORTES", "CC");
+        addNav("Gameplay", "GAMEPLAY", "GM");
+        addNav("Dark / Narrado", "DARK", "DK");
+        addNav("Podcast / Cortes", "PODCAST", "PC");
+        addNav("Shorts / Reels", "SHORTS", "SR");
+        addNav("Elementos", "ELEMENTOS", "EL");
+        addNav("Legendas", "LEGENDAS", "CC");
+        addNav("Audio", "AUDIO", "AU");
+        addNav("Formato", "FORMATO", "FM");
+        addNav("Estilos", "ESTILOS", "ST");
+        addNav("Lote", "LOTE", "LT");
+        addNav("Renderizacao", "RENDER", "RD");
+        addNav("Configuracoes", "CONFIG", "CF");
 
-        JLabel footer = new JLabel("Koda ecosystem • nada e enviado para a internet pelo editor • processamento local no seu PC");
-        footer.setForeground(muted);
-        footer.setBorder(new EmptyBorder(0,20,12,20));
+        sidebar.add(Box.createVerticalGlue());
+
+        JLabel version = new JLabel("v0.3 • local");
+        version.setForeground(MUTED);
+        version.setAlignmentX(Component.CENTER_ALIGNMENT);
+        sidebar.add(version);
+
+        cards.setBackground(BG);
+        cards.add(buildHomePanel(), "INICIO");
+        cards.add(buildAutoPanel(), "AUTO");
+        cards.add(buildCutsPanel(), "CORTES");
+        cards.add(buildPresetPanel(
+            "GAMEPLAY / MEME",
+            "Cortes rapidos, zooms, freeze frames, PNGs, SFX e legendas somente nos momentos que merecem destaque.",
+            "Gameplay / Meme"), "GAMEPLAY");
+        cards.add(buildPresetPanel(
+            "DARK / NARRADO",
+            "Legenda praticamente completa, ritmo constante, B-rolls, trilha baixa e leitura clara da narracao.",
+            "Dark / Narrado"), "DARK");
+        cards.add(buildPresetPanel(
+            "PODCAST / CORTES",
+            "Transcreve, procura trechos fortes e prepara clipes verticais ou horizontais com legenda automatica.",
+            "Podcast / Cortes"), "PODCAST");
+        cards.add(buildPresetPanel(
+            "SHORTS / REELS",
+            "9:16, safe zones, legenda grande, enquadramento vertical e ritmo mais agressivo para conteudo curto.",
+            "Shorts / Reels"), "SHORTS");
+        cards.add(buildAssetsPanel(), "ELEMENTOS");
+        cards.add(buildCaptionsPanel(), "LEGENDAS");
+        cards.add(buildAudioPanel(), "AUDIO");
+        cards.add(buildFormatPanel(), "FORMATO");
+        cards.add(buildStylesPanel(), "ESTILOS");
+        cards.add(buildBatchPanel(), "LOTE");
+        cards.add(buildRenderPanel(), "RENDER");
+        cards.add(buildSettingsPanel(), "CONFIG");
+
+        body.add(sidebar, BorderLayout.WEST);
+        body.add(cards, BorderLayout.CENTER);
+        add(body, BorderLayout.CENTER);
+
+        JLabel footer = new JLabel("  Koda ecosystem • edicao local • FFmpeg + NVENC • Whisper local • sem creditos por render");
+        footer.setForeground(MUTED);
+        footer.setBorder(new EmptyBorder(7,12,9,12));
         add(footer, BorderLayout.SOUTH);
+
+        cardLayout.show(cards, "INICIO");
     }
 
-    private JPanel buildProjectTab(Color bg, Color panel, Color field, Color fg, Color muted) {
+    private JPanel buildHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(BG);
+        header.setBorder(new EmptyBorder(12,16,10,16));
+
+        JComponent brand = new JComponent() {
+            @Override protected void paintComponent(Graphics graphics) {
+                super.paintComponent(graphics);
+                Graphics2D g = (Graphics2D) graphics.create();
+                KodaIcon.paintBrand(g, getWidth(), getHeight(), FG);
+                g.dispose();
+            }
+            @Override public Dimension getPreferredSize() { return new Dimension(270, 64); }
+        };
+        header.add(brand, BorderLayout.WEST);
+
+        JPanel right = new JPanel();
+        right.setOpaque(false);
+        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+        JLabel title = new JLabel("AUTOMATIC VIDEO EDITOR");
+        title.setForeground(FG);
+        title.setFont(new Font("SansSerif", Font.BOLD, 13));
+        title.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        JLabel sub = new JLabel("Windows 10 x64 • otimizado para Ryzen 5 4500 + GTX 1660 Super");
+        sub.setForeground(MUTED);
+        sub.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        right.add(Box.createVerticalGlue());
+        right.add(title);
+        right.add(sub);
+        right.add(Box.createVerticalGlue());
+        header.add(right, BorderLayout.EAST);
+        return header;
+    }
+
+    private void addNav(String text, String card, String shortText) {
+        JButton b = navButton(text, shortText, card);
+        b.addActionListener(e -> {
+            cardLayout.show(cards, card);
+            highlightNav(card);
+        });
+        navButtons.put(card, b);
+        sidebar.add(b);
+        sidebar.add(Box.createVerticalStrut(4));
+    }
+
+    private JButton navButton(String text, String shortText, String card) {
+        JButton b = new JButton(text);
+        b.putClientProperty("fullText", text);
+        b.putClientProperty("shortText", shortText);
+        b.putClientProperty("card", card);
+        b.setHorizontalAlignment(SwingConstants.LEFT);
+        b.setFocusPainted(false);
+        b.setBackground(new Color(22,22,22));
+        b.setForeground(FG);
+        b.setBorder(new EmptyBorder(9,10,9,10));
+        b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        return b;
+    }
+
+    private void highlightNav(String active) {
+        for (Map.Entry<String, JButton> e : navButtons.entrySet()) {
+            e.getValue().setBackground(e.getKey().equals(active) ? new Color(52,52,52) : new Color(22,22,22));
+        }
+    }
+
+    private void toggleSidebar() {
+        sidebarCollapsed = !sidebarCollapsed;
+        sidebar.setPreferredSize(new Dimension(sidebarCollapsed ? 72 : 224, 100));
+        for (Component c : sidebar.getComponents()) {
+            if (c instanceof JButton b) {
+                Object full = b.getClientProperty("fullText");
+                Object shortText = b.getClientProperty("shortText");
+                if (full != null && shortText != null) {
+                    b.setText(sidebarCollapsed ? shortText.toString() : full.toString());
+                    b.setHorizontalAlignment(sidebarCollapsed ? SwingConstants.CENTER : SwingConstants.LEFT);
+                }
+            }
+        }
+        sidebar.revalidate();
+        sidebar.repaint();
+    }
+
+    private JPanel page(String title, String subtitle) {
         JPanel wrap = new JPanel(new BorderLayout(12,12));
-        wrap.setBackground(bg);
+        wrap.setBackground(BG);
+        wrap.setBorder(new EmptyBorder(16,18,16,18));
 
-        JPanel left = new JPanel();
+        JPanel head = new JPanel();
+        head.setOpaque(false);
+        head.setLayout(new BoxLayout(head, BoxLayout.Y_AXIS));
+        JLabel h = label(title, 24, Font.BOLD);
+        JLabel s = new JLabel(subtitle);
+        s.setForeground(MUTED);
+        head.add(h);
+        head.add(Box.createVerticalStrut(3));
+        head.add(s);
+        wrap.add(head, BorderLayout.NORTH);
+        return wrap;
+    }
+
+    private JPanel buildHomePanel() {
+        JPanel wrap = page("Koda Cut", "Escolha um fluxo e deixe o PC executar a edicao localmente.");
+
+        JPanel grid = new JPanel(new GridLayout(2,3,12,12));
+        grid.setOpaque(false);
+        grid.add(homeCard("EDICAO AUTOMATICA", "Video + elementos + KodaScript. Renderiza horizontal, vertical, quadrado ou todos.", "AUTO"));
+        grid.add(homeCard("CANAL DE CORTES", "Link autorizado ou arquivo local. Transcreve e gera varios cortes automaticamente.", "CORTES"));
+        grid.add(homeCard("GAMEPLAY", "Perfil meme: zoom, freeze, PNG, SFX e legendas de destaque.", "GAMEPLAY"));
+        grid.add(homeCard("DARK / NARRADO", "Legenda completa, B-roll, ritmo narrativo e trilha com ducking.", "DARK"));
+        grid.add(homeCard("SHORTS / REELS", "9:16, safe zones e legendas fortes para conteudo curto.", "SHORTS"));
+        grid.add(homeCard("LOTE", "Renderize varios videos usando o mesmo KodaScript e configuracoes.", "LOTE"));
+
+        wrap.add(grid, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel homeCard(String title, String desc, String target) {
+        JPanel p = new JPanel(new BorderLayout(8,8));
+        p.setBackground(PANEL);
+        p.setBorder(new EmptyBorder(18,18,18,18));
+        JLabel h = label(title, 16, Font.BOLD);
+        JTextArea d = infoArea(desc, 4);
+        JButton go = button("ABRIR");
+        go.addActionListener(e -> {
+            cardLayout.show(cards, target);
+            highlightNav(target);
+        });
+        p.add(h, BorderLayout.NORTH);
+        p.add(d, BorderLayout.CENTER);
+        p.add(go, BorderLayout.SOUTH);
+        return p;
+    }
+
+    private JPanel buildAutoPanel() {
+        JPanel wrap = page("Edicao Automatica", "Adicione o material, cole o KodaScript gerado pelo ChatGPT e clique em renderizar.");
+
+        JPanel main = new JPanel(new GridLayout(1,2,12,0));
+        main.setOpaque(false);
+
+        JPanel left = panelBox();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
-        left.setBackground(panel);
-        left.setBorder(new EmptyBorder(16,16,16,16));
-
-        left.add(label("1. Video principal", fg));
+        left.add(label("Video principal", 13, Font.BOLD));
         left.add(Box.createVerticalStrut(6));
-        left.add(fileRow(mainVideoField, "ADICIONAR VIDEO", e -> chooseMainVideo(), field, fg));
-        left.add(Box.createVerticalStrut(14));
+        left.add(fileRow(mainVideoField, "ADICIONAR VIDEO", e -> chooseMainVideo()));
+        left.add(Box.createVerticalStrut(12));
 
-        left.add(label("2. Formato de saida", fg));
-        left.add(Box.createVerticalStrut(6));
-        styleCombo(outputMode, field, fg);
+        JButton addAssets = button("ADICIONAR IMAGENS / VIDEOS / AUDIOS");
+        addAssets.addActionListener(e -> addAssets());
+        JButton map = button("COPIAR MAPA P/ CHATGPT");
+        map.addActionListener(e -> copyManifest());
+        left.add(addAssets);
+        left.add(Box.createVerticalStrut(7));
+        left.add(map);
+        left.add(Box.createVerticalStrut(16));
+
+        left.add(label("Perfil", 13, Font.BOLD));
+        styleCombo(stylePreset);
+        stylePreset.addActionListener(e -> {
+            Object selected = stylePreset.getSelectedItem();
+            if (selected != null && !"Personalizado".equals(selected.toString())) applyProfile(selected.toString());
+        });
+        left.add(stylePreset);
+        left.add(Box.createVerticalStrut(10));
+
+        left.add(label("Formato", 13, Font.BOLD));
+        styleCombo(outputMode);
         left.add(outputMode);
-        left.add(Box.createVerticalStrut(8));
-
-        left.add(label("Modo vertical", fg));
-        left.add(Box.createVerticalStrut(6));
-        styleCombo(verticalMode, field, fg);
+        left.add(Box.createVerticalStrut(7));
+        styleCombo(verticalMode);
         left.add(verticalMode);
-        left.add(Box.createVerticalStrut(8));
+        left.add(Box.createVerticalStrut(10));
 
-        left.add(label("Qualidade", fg));
-        left.add(Box.createVerticalStrut(6));
-        styleCombo(quality, field, fg);
-        left.add(quality);
-        left.add(Box.createVerticalStrut(14));
-
-        left.add(label("3. Pasta final", fg));
-        left.add(Box.createVerticalStrut(6));
+        left.add(label("Pasta final", 13, Font.BOLD));
         outputField.setText(root.resolve("final").toString());
-        left.add(fileRow(outputField, "ESCOLHER PASTA", e -> chooseOutput(), field, fg));
+        left.add(fileRow(outputField, "ESCOLHER", e -> chooseOutput()));
+        left.add(Box.createVerticalGlue());
 
-        JPanel right = new JPanel(new BorderLayout(0,8));
-        right.setBackground(panel);
-        right.setBorder(new EmptyBorder(16,16,16,16));
+        JPanel right = panelBox();
+        right.setLayout(new BorderLayout(0,8));
+        JPanel rh = new JPanel();
+        rh.setOpaque(false);
+        rh.setLayout(new BoxLayout(rh, BoxLayout.Y_AXIS));
+        rh.add(label("Prompt de edicao / KodaScript", 13, Font.BOLD));
+        JLabel help = new JLabel("Aceita JSON puro ou JSON dentro de bloco de codigo.");
+        help.setForeground(MUTED);
+        rh.add(help);
+        right.add(rh, BorderLayout.NORTH);
 
-        JPanel titlePanel = new JPanel(new BorderLayout());
-        titlePanel.setOpaque(false);
-        titlePanel.add(label("4. Prompt de edicao / KodaScript", fg), BorderLayout.WEST);
-
-        JLabel info = new JLabel("Cole exatamente o JSON gerado pelo ChatGPT");
-        info.setForeground(muted);
-        titlePanel.add(info, BorderLayout.SOUTH);
-        right.add(titlePanel, BorderLayout.NORTH);
-
-        promptArea.setBackground(field);
-        promptArea.setForeground(fg);
-        promptArea.setCaretColor(fg);
-        promptArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        promptArea.setLineWrap(false);
+        styleTextArea(promptArea, true);
         right.add(new JScrollPane(promptArea), BorderLayout.CENTER);
 
-        JPanel promptButtons = new JPanel(new FlowLayout(FlowLayout.LEFT,8,0));
-        promptButtons.setOpaque(false);
-        JButton load = button("CARREGAR PROMPT");
-        JButton save = button("SALVAR PROMPT");
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT,8,0));
+        buttons.setOpaque(false);
+        JButton load = button("CARREGAR");
+        JButton save = button("SALVAR");
         JButton example = button("EXEMPLO");
         load.addActionListener(e -> loadPrompt());
         save.addActionListener(e -> savePrompt());
         example.addActionListener(e -> loadExample());
-        promptButtons.add(load);
-        promptButtons.add(save);
-        promptButtons.add(example);
-        right.add(promptButtons, BorderLayout.SOUTH);
+        buttons.add(load);
+        buttons.add(save);
+        buttons.add(example);
+        right.add(buttons, BorderLayout.SOUTH);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
-        split.setResizeWeight(0.36);
-        split.setDividerLocation(390);
-        split.setBorder(null);
-        wrap.add(split, BorderLayout.CENTER);
+        main.add(left);
+        main.add(right);
+        wrap.add(main, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new GridLayout(1,3,8,0));
-        actions.setBackground(bg);
+        actions.setOpaque(false);
         stylePrimary(renderButton);
-        styleSecondary(setupButton);
-        styleSecondary(openFinalButton);
-        renderButton.addActionListener(e -> render());
+        renderButton.addActionListener(e -> renderMain());
         setupButton.addActionListener(e -> runSetup());
-        openFinalButton.addActionListener(e -> openFinal());
+        styleSecondary(setupButton);
+        JButton folder = new JButton("ABRIR PASTA FINAL");
+        styleSecondary(folder);
+        folder.addActionListener(e -> openPath(Paths.get(outputField.getText().trim())));
         actions.add(renderButton);
         actions.add(setupButton);
-        actions.add(openFinalButton);
+        actions.add(folder);
         wrap.add(actions, BorderLayout.SOUTH);
         return wrap;
     }
 
-    private JPanel buildAssetsTab(Color bg, Color panel, Color field, Color fg, Color muted) {
-        JPanel wrap = new JPanel(new BorderLayout(10,10));
-        wrap.setBackground(panel);
-        wrap.setBorder(new EmptyBorder(16,16,16,16));
+    private JPanel buildCutsPanel() {
+        JPanel wrap = page("Canal de Cortes", "Cole um link autorizado do YouTube ou escolha um arquivo local. O Koda Cut transcreve e procura os melhores trechos.");
 
-        JPanel top = new JPanel(new BorderLayout());
+        JPanel form = panelBox();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+
+        form.add(label("Link do YouTube", 13, Font.BOLD));
+        form.add(Box.createVerticalStrut(5));
+        styleField(cutsUrlField);
+        form.add(cutsUrlField);
+        form.add(Box.createVerticalStrut(8));
+        styleCheck(rightsCheck);
+        form.add(rightsCheck);
+        form.add(Box.createVerticalStrut(12));
+
+        form.add(label("Ou arquivo local", 13, Font.BOLD));
+        form.add(Box.createVerticalStrut(5));
+        form.add(fileRow(cutsSourceField, "ESCOLHER VIDEO", e -> chooseCutsSource()));
+        form.add(Box.createVerticalStrut(12));
+
+        JPanel opts = new JPanel(new GridLayout(2,5,8,8));
+        opts.setOpaque(false);
+        opts.add(fieldGroup("Quantidade", cutCount));
+        opts.add(fieldGroup("Min. segundos", cutMin));
+        opts.add(fieldGroup("Max. segundos", cutMax));
+        opts.add(fieldGroup("Formato", cutFormat));
+        opts.add(fieldGroup("Legendas", cutCaptionMode));
+        opts.add(new JPanel());
+        opts.add(new JPanel());
+        opts.add(new JPanel());
+        opts.add(new JPanel());
+        opts.add(new JPanel());
+        form.add(opts);
+        form.add(Box.createVerticalStrut(12));
+
+        form.add(label("Prompt do canal de cortes", 13, Font.BOLD));
+        JLabel h = new JLabel("Ex.: Gere 8 cortes de 40 a 70 segundos, vertical, legenda completa, comece direto na melhor frase.");
+        h.setForeground(MUTED);
+        form.add(h);
+        form.add(Box.createVerticalStrut(6));
+        styleTextArea(cutsPromptArea, true);
+        cutsPromptArea.setText("Gere cortes com inicio forte, sem introducao longa, remova trechos mortos e mantenha contexto suficiente para entender a fala.");
+        JScrollPane sp = new JScrollPane(cutsPromptArea);
+        sp.setPreferredSize(new Dimension(300,160));
+        form.add(sp);
+
+        wrap.add(form, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new GridLayout(1,3,8,0));
+        actions.setOpaque(false);
+        JButton importBtn = button("IMPORTAR LINK");
+        JButton transcriptBtn = button("TRANSCREVER");
+        JButton generateBtn = new JButton("GERAR CORTES");
+        stylePrimary(generateBtn);
+        importBtn.addActionListener(e -> importCutsUrl(null));
+        transcriptBtn.addActionListener(e -> transcribeCutsSource());
+        generateBtn.addActionListener(e -> generateCuts());
+        actions.add(importBtn);
+        actions.add(transcriptBtn);
+        actions.add(generateBtn);
+        wrap.add(actions, BorderLayout.SOUTH);
+        return wrap;
+    }
+
+    private JPanel buildPresetPanel(String title, String desc, String profile) {
+        JPanel wrap = page(title, desc);
+
+        JPanel center = panelBox();
+        center.setLayout(new BorderLayout(12,12));
+        JTextArea detail = infoArea(profileDescription(profile), 12);
+        detail.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        center.add(detail, BorderLayout.CENTER);
+
+        JButton apply = new JButton("USAR ESTE PERFIL");
+        stylePrimary(apply);
+        apply.addActionListener(e -> {
+            applyProfile(profile);
+            cardLayout.show(cards, "AUTO");
+            highlightNav("AUTO");
+        });
+        center.add(apply, BorderLayout.SOUTH);
+
+        wrap.add(center, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private String profileDescription(String profile) {
+        return switch (profile) {
+            case "Gameplay / Meme" ->
+                "• Legendas de destaque\n• Zoom e freeze nos beats do KodaScript\n• PNGs/memes/SFX por timestamp\n• Voz limpa, jogo preservado\n• 1080p60 e NVENC\n\nIdeal para gameplay, reacts e videos com humor.";
+            case "Dark / Narrado" ->
+                "• Legenda completa por padrao\n• Whisper local\n• B-roll e imagens da biblioteca\n• Trilha baixa com ducking\n• Ritmo limpo, sem efeitos exagerados\n\nIdeal para historias, curiosidades, documentarios curtos e canais dark.";
+            case "Podcast / Cortes" ->
+                "• Transcricao completa\n• Canal de Cortes com selecao automatica\n• Vertical ou horizontal\n• Legenda completa ou destaques\n• Inicio do clipe puxado para a frase mais forte\n\nIdeal para podcasts, entrevistas e lives.";
+            case "Shorts / Reels" ->
+                "• 1080x1920\n• Safe zone para botoes das plataformas\n• Fundo borrado ou crop\n• Legendas grandes\n• Render rapido com NVENC\n\nIdeal para Reels, Shorts, TikTok e Stories.";
+            default ->
+                "Perfil de edicao do Koda Cut.";
+        };
+    }
+
+    private JPanel buildAssetsPanel() {
+        JPanel wrap = page("Elementos", "Biblioteca permanente de videos, B-rolls, PNGs, fotos, logos, memes, musicas e SFX.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BorderLayout(8,8));
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT,8,0));
         top.setOpaque(false);
-
-        JPanel heading = new JPanel();
-        heading.setOpaque(false);
-        heading.setLayout(new BoxLayout(heading, BoxLayout.Y_AXIS));
-        heading.add(label("Biblioteca do projeto", fg));
-        JLabel help = new JLabel("Adicione qualquer video, imagem/PNG ou audio. O Koda Cut cria um ID para cada arquivo.");
-        help.setForeground(muted);
-        heading.add(help);
-        top.add(heading, BorderLayout.WEST);
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT,8,0));
-        buttons.setOpaque(false);
-        JButton addFiles = button("ADICIONAR ARQUIVOS");
+        JButton add = button("ADICIONAR ARQUIVOS");
         JButton remove = button("REMOVER");
         JButton reload = button("RECARREGAR");
         JButton copy = button("COPIAR MAPA P/ CHATGPT");
         JButton folder = button("ABRIR BIBLIOTECA");
-
-        addFiles.addActionListener(e -> addAssets());
+        add.addActionListener(e -> addAssets());
         remove.addActionListener(e -> removeSelectedAsset());
         reload.addActionListener(e -> scanLibrary());
         copy.addActionListener(e -> copyManifest());
-        folder.addActionListener(e -> openLibrary());
+        folder.addActionListener(e -> openPath(root.resolve("biblioteca")));
+        top.add(add); top.add(remove); top.add(reload); top.add(copy); top.add(folder);
+        p.add(top, BorderLayout.NORTH);
 
-        buttons.add(addFiles);
-        buttons.add(remove);
-        buttons.add(reload);
-        buttons.add(copy);
-        buttons.add(folder);
-        top.add(buttons, BorderLayout.EAST);
-        wrap.add(top, BorderLayout.NORTH);
-
-        assetTable.setBackground(field);
-        assetTable.setForeground(fg);
-        assetTable.setGridColor(new Color(58,58,58));
+        assetTable.setBackground(FIELD);
+        assetTable.setForeground(FG);
+        assetTable.setGridColor(LINE);
         assetTable.setSelectionBackground(new Color(70,70,70));
         assetTable.setSelectionForeground(Color.WHITE);
-        assetTable.setRowHeight(26);
+        assetTable.setRowHeight(27);
         assetTable.getTableHeader().setReorderingAllowed(false);
-        assetTable.getColumnModel().getColumn(0).setPreferredWidth(210);
-        assetTable.getColumnModel().getColumn(1).setPreferredWidth(80);
-        assetTable.getColumnModel().getColumn(2).setPreferredWidth(330);
-        assetTable.getColumnModel().getColumn(3).setPreferredWidth(120);
-        wrap.add(new JScrollPane(assetTable), BorderLayout.CENTER);
+        p.add(new JScrollPane(assetTable), BorderLayout.CENTER);
 
-        JTextArea explanation = new JTextArea(
-            "COMO O KODA CUT RECONHECE OS ARQUIVOS\n" +
-            "• Video: video:nome_do_arquivo\n" +
-            "• Imagem/PNG: image:nome_do_arquivo\n" +
-            "• Audio/SFX/musica: audio:nome_do_arquivo\n\n" +
-            "Exemplo: se voce adicionar boom.wav, o ID vira audio:boom. " +
-            "No prompt o ChatGPT manda algo como: tocar audio:boom em 00:12.400.\n\n" +
-            "O programa nao precisa adivinhar qual som voce quis dizer: o ID liga exatamente o comando ao arquivo certo. " +
-            "O mesmo vale para B-roll, logos, memes, PNGs, fotos, musicas e efeitos."
-        );
-        explanation.setEditable(false);
-        explanation.setWrapStyleWord(true);
-        explanation.setLineWrap(true);
-        explanation.setRows(6);
-        explanation.setBackground(new Color(16,16,16));
-        explanation.setForeground(new Color(205,205,205));
-        explanation.setBorder(new EmptyBorder(10,10,10,10));
-        wrap.add(explanation, BorderLayout.SOUTH);
+        JTextArea help = infoArea(
+            "Cada arquivo recebe um ID estavel. Ex.: boom.wav → audio:boom, logo.png → image:logo, praia.mp4 → video:praia. " +
+            "O ChatGPT usa esses IDs no KodaScript, entao o motor sabe exatamente qual arquivo colocar, em qual segundo e por quanto tempo.", 4);
+        p.add(help, BorderLayout.SOUTH);
+
+        wrap.add(p, BorderLayout.CENTER);
         return wrap;
     }
 
-    private JPanel buildConsoleTab(Color bg, Color panel, Color fg) {
-        JPanel wrap = new JPanel(new BorderLayout(0,10));
-        wrap.setBackground(panel);
-        wrap.setBorder(new EmptyBorder(16,16,16,16));
-        wrap.add(label("Console / progresso", fg), BorderLayout.NORTH);
+    private JPanel buildCaptionsPanel() {
+        JPanel wrap = page("Legendas", "Whisper roda localmente. Escolha entre legenda completa, destaques ou palavra por palavra.");
 
-        logArea.setEditable(false);
-        logArea.setBackground(new Color(8,8,8));
-        logArea.setForeground(new Color(215,215,215));
-        logArea.setCaretColor(fg);
-        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        wrap.add(new JScrollPane(logArea), BorderLayout.CENTER);
+        JPanel p = panelBox();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        styleCheck(autoTranscribe);
+        styleCheck(safeZone);
+        p.add(autoTranscribe);
+        p.add(Box.createVerticalStrut(8));
+        p.add(fieldGroup("Modo de legenda", captionMode));
+        p.add(Box.createVerticalStrut(8));
+        p.add(fieldGroup("Idioma", language));
+        p.add(Box.createVerticalStrut(8));
+        p.add(safeZone);
+        p.add(Box.createVerticalStrut(16));
+
+        JTextArea help = infoArea(
+            "Completa: legenda todas as falas detectadas.\n\n" +
+            "Destaques: usa heuristicas para escolher frases mais expressivas; combina com gameplay/meme.\n\n" +
+            "Palavra por palavra: gera karaoke ASS local, distribuindo o tempo da frase entre as palavras para destacar a palavra atual.\n\n" +
+            "O Whisper usa um modelo local e nao consome creditos de IA.", 10);
+        p.add(help);
+        p.add(Box.createVerticalStrut(12));
+
+        JButton transcribe = button("TRANSCREVER VIDEO PRINCIPAL AGORA");
+        transcribe.addActionListener(e -> transcribeMainVideo());
+        p.add(transcribe);
+
+        wrap.add(p, BorderLayout.CENTER);
         return wrap;
     }
 
-    private JLabel label(String text, Color c) {
+    private JPanel buildAudioPanel() {
+        JPanel wrap = page("Audio", "Tratamento local da voz, normalizacao, ducking e controle de musica.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        styleCheck(noiseReduction);
+        styleCheck(normalizeAudio);
+        styleCheck(ducking);
+        p.add(noiseReduction);
+        p.add(Box.createVerticalStrut(8));
+        p.add(normalizeAudio);
+        p.add(Box.createVerticalStrut(8));
+        p.add(ducking);
+        p.add(Box.createVerticalStrut(12));
+        p.add(fieldGroup("Volume da voz", voiceVolume));
+        p.add(Box.createVerticalStrut(8));
+        p.add(fieldGroup("Volume padrao da musica", musicVolume));
+        p.add(Box.createVerticalStrut(16));
+        p.add(infoArea(
+            "Ducking abaixa a trilha quando existe voz no video. O KodaScript ainda pode controlar volumes de SFX e musicas individualmente.", 5));
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel buildFormatPanel() {
+        JPanel wrap = page("Formato", "Um mesmo projeto pode gerar YouTube, Reels/Stories/Shorts e quadrado.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.add(fieldGroup("Saida", outputMode));
+        p.add(Box.createVerticalStrut(10));
+        p.add(fieldGroup("Vertical", verticalMode));
+        p.add(Box.createVerticalStrut(10));
+        styleCheck(safeZone);
+        p.add(safeZone);
+        p.add(Box.createVerticalStrut(16));
+        p.add(infoArea(
+            "Horizontal: 1920x1080.\nVertical: 1080x1920.\nQuadrado: 1080x1080.\n\n" +
+            "No vertical, o modo Preservar mantem todo o gameplay e preenche o fundo com blur. O modo Crop ocupa a tela inteira cortando as laterais.", 8));
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel buildStylesPanel() {
+        JPanel wrap = page("Estilos", "Perfis mudam as configuracoes padrao; o KodaScript continua podendo mandar instrucoes especificas.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.add(fieldGroup("Perfil atual", stylePreset));
+        p.add(Box.createVerticalStrut(12));
+
+        JButton gameplay = button("APLICAR GAMEPLAY / MEME");
+        JButton dark = button("APLICAR DARK / NARRADO");
+        JButton podcast = button("APLICAR PODCAST / CORTES");
+        JButton shorts = button("APLICAR SHORTS / REELS");
+        gameplay.addActionListener(e -> applyProfile("Gameplay / Meme"));
+        dark.addActionListener(e -> applyProfile("Dark / Narrado"));
+        podcast.addActionListener(e -> applyProfile("Podcast / Cortes"));
+        shorts.addActionListener(e -> applyProfile("Shorts / Reels"));
+        p.add(gameplay); p.add(Box.createVerticalStrut(7));
+        p.add(dark); p.add(Box.createVerticalStrut(7));
+        p.add(podcast); p.add(Box.createVerticalStrut(7));
+        p.add(shorts);
+
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel buildBatchPanel() {
+        JPanel wrap = page("Lote", "Aplique o mesmo KodaScript a varios videos sem iniciar cada render manualmente.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BorderLayout(8,8));
+        batchList.setBackground(FIELD);
+        batchList.setForeground(FG);
+        p.add(new JScrollPane(batchList), BorderLayout.CENTER);
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT,8,0));
+        top.setOpaque(false);
+        JButton add = button("ADICIONAR VIDEOS");
+        JButton remove = button("REMOVER");
+        JButton clear = button("LIMPAR");
+        add.addActionListener(e -> addBatchVideos());
+        remove.addActionListener(e -> {
+            for (Path path : batchList.getSelectedValuesList()) batchModel.removeElement(path);
+        });
+        clear.addActionListener(e -> batchModel.clear());
+        top.add(add); top.add(remove); top.add(clear);
+        p.add(top, BorderLayout.NORTH);
+
+        JButton render = new JButton("RENDERIZAR LOTE");
+        stylePrimary(render);
+        render.addActionListener(e -> renderBatch());
+        p.add(render, BorderLayout.SOUTH);
+
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel buildRenderPanel() {
+        JPanel wrap = page("Renderizacao", "Presets pensados para o seu Ryzen 5 4500 + GTX 1660 Super + 16 GB.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.add(fieldGroup("Qualidade", quality));
+        p.add(Box.createVerticalStrut(14));
+
+        JButton setup = button("CONFIGURAR / ATUALIZAR FERRAMENTAS");
+        JButton nvenc = button("TESTAR NVIDIA NVENC");
+        JButton finalFolder = button("ABRIR PASTA FINAL");
+        JButton cache = button("LIMPAR CACHE");
+        setup.addActionListener(e -> runSetup());
+        nvenc.addActionListener(e -> testNvenc());
+        finalFolder.addActionListener(e -> openPath(root.resolve("final")));
+        cache.addActionListener(e -> clearCache());
+        p.add(setup); p.add(Box.createVerticalStrut(7));
+        p.add(nvenc); p.add(Box.createVerticalStrut(7));
+        p.add(finalFolder); p.add(Box.createVerticalStrut(7));
+        p.add(cache); p.add(Box.createVerticalStrut(14));
+
+        p.add(infoArea(
+            "Balanceado usa H.264 NVENC quando disponivel. A GTX 1660 Super faz a codificacao e reduz a carga da CPU. " +
+            "O Koda Cut evita arquivos intermediarios grandes e limpa a pasta temp para poupar o SSD de 256 GB.", 6));
+
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel buildSettingsPanel() {
+        JPanel wrap = page("Configuracoes", "Ferramentas locais, pastas e informacoes do projeto.");
+
+        JPanel p = panelBox();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+
+        JTextArea paths = infoArea(
+            "Raiz: " + root + "\n" +
+            "FFmpeg: ffmpeg\\bin\\ffmpeg.exe\n" +
+            "yt-dlp: tools\\yt-dlp.exe\n" +
+            "Whisper: tools\\whisper\\whisper-cli.exe\n" +
+            "Modelo: tools\\whisper\\models\\ggml-base.bin\n" +
+            "Downloads: downloads\\\n" +
+            "Transcricoes: transcricoes\\\n" +
+            "Saidas: final\\", 9);
+        p.add(paths);
+        p.add(Box.createVerticalStrut(10));
+
+        JButton setup = button("CONFIGURAR TUDO");
+        JButton map = button("COPIAR MAPA DE ARQUIVOS");
+        JButton console = button("ABRIR CONSOLE / LOG");
+        setup.addActionListener(e -> runSetup());
+        map.addActionListener(e -> copyManifest());
+        console.addActionListener(e -> {
+            cardLayout.show(cards, "RENDER");
+            highlightNav("RENDER");
+        });
+        p.add(setup); p.add(Box.createVerticalStrut(7));
+        p.add(map); p.add(Box.createVerticalStrut(7));
+        p.add(console);
+
+        wrap.add(p, BorderLayout.CENTER);
+        return wrap;
+    }
+
+    private JPanel panelBox() {
+        JPanel p = new JPanel();
+        p.setBackground(PANEL);
+        p.setBorder(new EmptyBorder(16,16,16,16));
+        return p;
+    }
+
+    private JTextArea infoArea(String text, int rows) {
+        JTextArea a = new JTextArea(text);
+        a.setEditable(false);
+        a.setWrapStyleWord(true);
+        a.setLineWrap(true);
+        a.setRows(rows);
+        a.setBackground(new Color(16,16,16));
+        a.setForeground(new Color(210,210,210));
+        a.setBorder(new EmptyBorder(10,10,10,10));
+        return a;
+    }
+
+    private JPanel fieldGroup(String name, JComponent c) {
+        JPanel p = new JPanel(new BorderLayout(0,5));
+        p.setOpaque(false);
+        p.add(label(name, 12, Font.BOLD), BorderLayout.NORTH);
+        if (c instanceof JComboBox<?> combo) styleCombo(combo);
+        if (c instanceof JTextField tf) styleField(tf);
+        if (c instanceof JSpinner sp) styleSpinner(sp);
+        p.add(c, BorderLayout.CENTER);
+        return p;
+    }
+
+    private JLabel label(String text, int size, int style) {
         JLabel l = new JLabel(text);
-        l.setForeground(c);
-        l.setFont(new Font("SansSerif", Font.BOLD, 13));
+        l.setForeground(FG);
+        l.setFont(new Font("SansSerif", style, size));
         return l;
     }
 
-    private JPanel fileRow(JTextField f, String text, java.awt.event.ActionListener a, Color bg, Color fg) {
-        f.setBackground(bg);
-        f.setForeground(fg);
-        f.setCaretColor(fg);
-        f.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(60,60,60)),
-            new EmptyBorder(7,8,7,8)
-        ));
+    private JPanel fileRow(JTextField f, String text, java.awt.event.ActionListener a) {
+        styleField(f);
         JButton b = button(text);
         b.addActionListener(a);
         JPanel p = new JPanel(new BorderLayout(8,0));
         p.setOpaque(false);
         p.add(f, BorderLayout.CENTER);
         p.add(b, BorderLayout.EAST);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE,38));
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE,40));
         return p;
     }
 
     private JButton button(String text) {
         JButton b = new JButton(text);
-        b.setFocusPainted(false);
-        b.setBackground(new Color(45,45,45));
-        b.setForeground(Color.WHITE);
-        b.setBorder(new EmptyBorder(8,12,8,12));
+        styleSecondary(b);
         return b;
     }
 
@@ -354,20 +852,50 @@ public class KodaCut extends JFrame {
         b.setBackground(Color.WHITE);
         b.setForeground(Color.BLACK);
         b.setFont(new Font("SansSerif", Font.BOLD, 14));
-        b.setBorder(new EmptyBorder(12,12,12,12));
+        b.setBorder(new EmptyBorder(12,14,12,14));
     }
 
     private void styleSecondary(JButton b) {
         b.setFocusPainted(false);
-        b.setBackground(new Color(44,44,44));
+        b.setBackground(new Color(43,43,43));
         b.setForeground(Color.WHITE);
-        b.setBorder(new EmptyBorder(10,12,10,12));
+        b.setBorder(new EmptyBorder(9,12,9,12));
     }
 
-    private void styleCombo(JComboBox<String> c, Color bg, Color fg) {
-        c.setBackground(bg);
-        c.setForeground(fg);
-        c.setMaximumSize(new Dimension(Integer.MAX_VALUE,34));
+    private void styleField(JTextField f) {
+        f.setBackground(FIELD);
+        f.setForeground(FG);
+        f.setCaretColor(FG);
+        f.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(LINE),
+            new EmptyBorder(8,8,8,8)
+        ));
+        f.setMaximumSize(new Dimension(Integer.MAX_VALUE,38));
+    }
+
+    private void styleTextArea(JTextArea a, boolean mono) {
+        a.setBackground(FIELD);
+        a.setForeground(FG);
+        a.setCaretColor(FG);
+        a.setFont(new Font(mono ? Font.MONOSPACED : "SansSerif", Font.PLAIN, 12));
+        a.setLineWrap(!mono);
+        a.setWrapStyleWord(!mono);
+    }
+
+    private void styleCombo(JComboBox<?> c) {
+        c.setBackground(FIELD);
+        c.setForeground(FG);
+        c.setMaximumSize(new Dimension(Integer.MAX_VALUE,36));
+    }
+
+    private void styleSpinner(JSpinner s) {
+        s.setMaximumSize(new Dimension(Integer.MAX_VALUE,36));
+    }
+
+    private void styleCheck(JCheckBox c) {
+        c.setOpaque(false);
+        c.setForeground(FG);
+        c.setFocusPainted(false);
     }
 
     private void chooseMainVideo() {
@@ -382,11 +910,33 @@ public class KodaCut extends JFrame {
         }
     }
 
+    private void chooseCutsSource() {
+        JFileChooser fc = new JFileChooser();
+        if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            Path p = fc.getSelectedFile().toPath();
+            if (!"video".equals(classify(p))) {
+                error("Escolha um arquivo de video.");
+                return;
+            }
+            cutsSourceField.setText(p.toAbsolutePath().toString());
+        }
+    }
+
     private void chooseOutput() {
         JFileChooser fc = new JFileChooser();
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             outputField.setText(fc.getSelectedFile().getAbsolutePath());
+        }
+    }
+
+    private void addBatchVideos() {
+        JFileChooser fc = new JFileChooser();
+        fc.setMultiSelectionEnabled(true);
+        if (fc.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        for (File f : fc.getSelectedFiles()) {
+            Path p = f.toPath().toAbsolutePath();
+            if ("video".equals(classify(p)) && !batchModel.contains(p)) batchModel.addElement(p);
         }
     }
 
@@ -428,7 +978,6 @@ public class KodaCut extends JFrame {
     private Path uniqueDestination(Path dir, String name) {
         Path original = dir.resolve(name);
         if (!Files.exists(original)) return original;
-
         String stem = stem(name);
         String ext = extension(name);
         int n = 2;
@@ -451,7 +1000,6 @@ public class KodaCut extends JFrame {
         int choice = JOptionPane.showConfirmDialog(this,
             "Remover da biblioteca?\n" + a.file.getFileName(),
             "Koda Cut", JOptionPane.YES_NO_OPTION);
-
         if (choice != JOptionPane.YES_OPTION) return;
 
         try {
@@ -467,7 +1015,7 @@ public class KodaCut extends JFrame {
         scanType(found, "video");
         scanType(found, "image");
         scanType(found, "audio");
-        found.sort(Comparator.comparing((Asset a) -> a.type).thenComparing(a -> a.file.getFileName().toString().toLowerCase()));
+        found.sort(Comparator.comparing((Asset a) -> a.type).thenComparing(a -> a.file.getFileName().toString().toLowerCase(Locale.ROOT)));
         assetModel.setAssets(found);
         append("[INFO] Biblioteca: " + found.size() + " elemento(s).");
     }
@@ -481,8 +1029,7 @@ public class KodaCut extends JFrame {
                     if (!Files.isRegularFile(p)) continue;
                     if (!type.equals(classify(p))) continue;
                     String id = typePrefix(type) + ":" + slug(stem(p.getFileName().toString()));
-                    String detail = humanSize(Files.size(p));
-                    out.add(new Asset(id, type, p, detail));
+                    out.add(new Asset(id, type, p, humanSize(Files.size(p))));
                 }
             }
         } catch (IOException e) {
@@ -499,9 +1046,9 @@ public class KodaCut extends JFrame {
     }
 
     private Path libraryDir(String type) {
-        if ("video".equals(type)) return root.resolve("biblioteca").resolve("videos");
-        if ("image".equals(type)) return root.resolve("biblioteca").resolve("imagens");
-        return root.resolve("biblioteca").resolve("audios");
+        if ("video".equals(type)) return root.resolve("biblioteca/videos");
+        if ("image".equals(type)) return root.resolve("biblioteca/imagens");
+        return root.resolve("biblioteca/audios");
     }
 
     private String typePrefix(String type) {
@@ -542,7 +1089,7 @@ public class KodaCut extends JFrame {
         String text = buildManifestText();
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
         JOptionPane.showMessageDialog(this,
-            "Mapa copiado. Cole junto da mensagem para o ChatGPT quando quiser que ele gere a edicao.",
+            "Mapa copiado. Envie esse mapa junto do video para o ChatGPT.",
             "Koda Cut", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -559,18 +1106,17 @@ public class KodaCut extends JFrame {
         return sb.toString();
     }
 
-    private Path saveManifestInternal() throws IOException {
-        Path p = root.resolve("projetos").resolve("assets.json");
+    private Path saveManifestInternal(Path video) throws IOException {
+        Path p = root.resolve("projetos/assets.json");
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
 
         boolean first = true;
-        String main = mainVideoField.getText().trim();
-        if (!main.isEmpty()) {
+        if (video != null) {
             sb.append("  \"video:principal\": {\"type\":\"video\",\"path\":\"")
-              .append(jsonEscape(Paths.get(main).toAbsolutePath().toString()))
+              .append(jsonEscape(video.toAbsolutePath().toString()))
               .append("\",\"name\":\"")
-              .append(jsonEscape(Paths.get(main).getFileName().toString()))
+              .append(jsonEscape(video.getFileName().toString()))
               .append("\"}");
             first = false;
         }
@@ -598,16 +1144,23 @@ public class KodaCut extends JFrame {
     }
 
     private void loadExample() {
-        Path p = root.resolve("projetos").resolve("exemplo-geral.json");
+        Path p = root.resolve("projetos/exemplo-geral.json");
         try {
-            if (Files.exists(p)) {
-                promptArea.setText(Files.readString(p, StandardCharsets.UTF_8));
-            } else {
-                promptArea.setText("{\n  \"version\": 2,\n  \"fps\": 60,\n  \"timeline\": []\n}");
-            }
+            if (Files.exists(p)) promptArea.setText(Files.readString(p, StandardCharsets.UTF_8));
+            else promptArea.setText(minimalProject());
         } catch (IOException e) {
-            promptArea.setText("{\n  \"version\": 2,\n  \"timeline\": []\n}");
+            promptArea.setText(minimalProject());
         }
+    }
+
+    private String minimalProject() {
+        return "{\n" +
+            "  \"version\": 3,\n" +
+            "  \"fps\": 60,\n" +
+            "  \"duracao_saida\": 0,\n" +
+            "  \"musica\": {\"asset\":\"\", \"volume\":0.08},\n" +
+            "  \"timeline\": []\n" +
+            "}";
     }
 
     private void loadPrompt() {
@@ -621,26 +1174,44 @@ public class KodaCut extends JFrame {
         }
     }
 
+    private String extractJson(String raw) {
+        String text = raw.trim();
+        int first = text.indexOf('{');
+        int last = text.lastIndexOf('}');
+        if (first >= 0 && last > first) return text.substring(first, last + 1).trim();
+        return text;
+    }
+
     private Path savePromptInternal() throws IOException {
-        Path p = root.resolve("projetos").resolve("ultimo.json");
-        Files.writeString(p, promptArea.getText(), StandardCharsets.UTF_8);
+        String normalized = extractJson(promptArea.getText());
+        if (!normalized.startsWith("{") || !normalized.endsWith("}")) {
+            throw new IOException("O KodaScript precisa conter um JSON. O ChatGPT pode enviar o JSON dentro de bloco de codigo.");
+        }
+        Path p = root.resolve("projetos/ultimo.json");
+        Files.writeString(p, normalized, StandardCharsets.UTF_8);
         return p;
     }
 
     private void savePrompt() {
         try {
             Path p = savePromptInternal();
-            saveManifestInternal();
-            append("[OK] Prompt salvo em: " + p);
+            Path video = null;
+            if (!mainVideoField.getText().trim().isEmpty()) video = Paths.get(mainVideoField.getText().trim());
+            saveManifestInternal(video);
+            append("[OK] KodaScript salvo em: " + p);
         } catch (IOException e) {
             error(e.getMessage());
         }
     }
 
     private String outputModeCode() {
-        if (outputMode.getSelectedIndex() == 1) return "vertical";
-        if (outputMode.getSelectedIndex() == 2) return "ambos";
-        return "horizontal";
+        return switch (outputMode.getSelectedIndex()) {
+            case 1 -> "vertical";
+            case 2 -> "quadrado";
+            case 3 -> "horizontal_vertical";
+            case 4 -> "todos";
+            default -> "horizontal";
+        };
     }
 
     private String verticalModeCode() {
@@ -653,57 +1224,313 @@ public class KodaCut extends JFrame {
         return "balanceado";
     }
 
+    private String captionModeCode() {
+        return switch (captionMode.getSelectedIndex()) {
+            case 1 -> "completa";
+            case 2 -> "destaques";
+            case 3 -> "palavra";
+            default -> "off";
+        };
+    }
+
+    private String cutCaptionCode() {
+        return switch (cutCaptionMode.getSelectedIndex()) {
+            case 1 -> "destaques";
+            case 2 -> "off";
+            default -> "completa";
+        };
+    }
+
+    private String currentStyleCode() {
+        Object o = stylePreset.getSelectedItem();
+        if (o == null) return "personalizado";
+        String s = o.toString();
+        if (s.startsWith("Gameplay")) return "gameplay";
+        if (s.startsWith("Dark")) return "dark";
+        if (s.startsWith("Podcast")) return "podcast";
+        if (s.startsWith("Shorts")) return "shorts";
+        if (s.startsWith("Clean")) return "clean";
+        if (s.startsWith("Cinematico")) return "cinematico";
+        return "personalizado";
+    }
+
+    private void applyProfile(String profile) {
+        stylePreset.setSelectedItem(profile);
+        switch (profile) {
+            case "Gameplay / Meme" -> {
+                captionMode.setSelectedItem("Destaques");
+                outputMode.setSelectedIndex(0);
+                safeZone.setSelected(true);
+                noiseReduction.setSelected(true);
+                normalizeAudio.setSelected(true);
+                ducking.setSelected(true);
+            }
+            case "Dark / Narrado" -> {
+                captionMode.setSelectedItem("Completa");
+                outputMode.setSelectedIndex(1);
+                verticalMode.setSelectedIndex(0);
+                safeZone.setSelected(true);
+                ducking.setSelected(true);
+            }
+            case "Podcast / Cortes" -> {
+                captionMode.setSelectedItem("Completa");
+                outputMode.setSelectedIndex(1);
+                safeZone.setSelected(true);
+            }
+            case "Shorts / Reels" -> {
+                captionMode.setSelectedItem("Completa");
+                outputMode.setSelectedIndex(1);
+                verticalMode.setSelectedIndex(0);
+                safeZone.setSelected(true);
+            }
+            case "Clean / Documentario" -> {
+                captionMode.setSelectedItem("Completa");
+                outputMode.setSelectedIndex(0);
+                safeZone.setSelected(false);
+            }
+            case "Cinematico" -> {
+                captionMode.setSelectedItem("Desligada");
+                outputMode.setSelectedIndex(0);
+                safeZone.setSelected(false);
+            }
+            default -> {}
+        }
+    }
+
     private void runSetup() {
         runProcess(List.of(
             "powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",
-            root.resolve("scripts").resolve("configurar.ps1").toString()
-        ), "Configuracao concluida.");
+            root.resolve("scripts/configurar.ps1").toString()
+        ), "Configuracao concluida.", null);
     }
 
-    private void render() {
+    private void renderMain() {
         String video = mainVideoField.getText().trim();
         if (video.isEmpty() || !Files.exists(Paths.get(video))) {
             error("Adicione um video principal valido.");
             return;
         }
+        renderSingle(Paths.get(video), null);
+    }
 
-        if (promptArea.getText().trim().isEmpty()) {
-            error("Cole o prompt/KodaScript da edicao.");
-            return;
-        }
-
+    private void renderSingle(Path video, Runnable onDone) {
         try {
             Path project = savePromptInternal();
-            Path manifest = saveManifestInternal();
-            Path out = Paths.get(outputField.getText().trim());
+            Path manifest = saveManifestInternal(video);
+            Path out = Paths.get(outputField.getText().trim().isBlank() ? root.resolve("final").toString() : outputField.getText().trim());
             Files.createDirectories(out);
 
             List<String> cmd = new ArrayList<>();
             Collections.addAll(cmd,
                 "powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",
-                root.resolve("scripts").resolve("editor.ps1").toString(),
-                "-Video",video,
+                root.resolve("scripts/editor.ps1").toString(),
+                "-Video",video.toAbsolutePath().toString(),
                 "-Project",project.toString(),
                 "-Manifest",manifest.toString(),
                 "-OutputMode",outputModeCode(),
                 "-VerticalMode",verticalModeCode(),
                 "-Quality",qualityCode(),
-                "-OutputDir",out.toString()
+                "-OutputDir",out.toString(),
+                "-CaptionMode",captionModeCode(),
+                "-AutoTranscribe",Boolean.toString(autoTranscribe.isSelected()),
+                "-Language",Objects.toString(language.getSelectedItem(),"pt"),
+                "-SafeZone",Boolean.toString(safeZone.isSelected()),
+                "-NoiseReduction",Boolean.toString(noiseReduction.isSelected()),
+                "-NormalizeAudio",Boolean.toString(normalizeAudio.isSelected()),
+                "-Ducking",Boolean.toString(ducking.isSelected()),
+                "-VoiceVolume",voiceVolume.getValue().toString(),
+                "-DefaultMusicVolume",musicVolume.getValue().toString(),
+                "-Style",currentStyleCode()
             );
-
-            runProcess(cmd, "Renderizacao finalizada.");
+            runProcess(cmd, "Renderizacao finalizada.", onDone);
         } catch (Exception e) {
             error(e.getMessage());
         }
     }
 
-    private void runProcess(List<String> cmd, String success) {
-        renderButton.setEnabled(false);
-        setupButton.setEnabled(false);
+    private void renderBatch() {
+        if (batchModel.isEmpty()) {
+            error("Adicione videos ao lote.");
+            return;
+        }
+        try {
+            savePromptInternal();
+        } catch (IOException e) {
+            error(e.getMessage());
+            return;
+        }
+
+        List<Path> queue = Collections.list(batchModel.elements());
+        renderBatchAt(queue, 0);
+    }
+
+    private void renderBatchAt(List<Path> queue, int index) {
+        if (index >= queue.size()) {
+            append("[OK] Lote concluido.");
+            JOptionPane.showMessageDialog(this, "Lote concluido.", "Koda Cut", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        Path video = queue.get(index);
+        append("[LOTE] " + (index + 1) + "/" + queue.size() + " -> " + video.getFileName());
+        renderSingle(video, () -> renderBatchAt(queue, index + 1));
+    }
+
+    private void importCutsUrl(Runnable after) {
+        String url = cutsUrlField.getText().trim();
+        if (url.isEmpty()) {
+            error("Cole o link do video.");
+            return;
+        }
+        if (!rightsCheck.isSelected()) {
+            error("Confirme que voce tem permissao para usar/reutilizar o conteudo.");
+            return;
+        }
+
+        List<String> cmd = List.of(
+            "powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",
+            root.resolve("scripts/importar-youtube.ps1").toString(),
+            "-Url",url,
+            "-OutputDir",root.resolve("downloads").toString()
+        );
+
+        runProcess(cmd, "Importacao concluida.", () -> {
+            Path newest = newestVideo(root.resolve("downloads"));
+            if (newest != null) {
+                SwingUtilities.invokeLater(() -> cutsSourceField.setText(newest.toString()));
+                append("[OK] Fonte de cortes: " + newest);
+                if (after != null) after.run();
+            } else {
+                append("[ERRO] Nao encontrei o video importado.");
+            }
+        });
+    }
+
+    private Path newestVideo(Path dir) {
+        try {
+            return Files.list(dir)
+                .filter(Files::isRegularFile)
+                .filter(p -> "video".equals(classify(p)))
+                .max(Comparator.comparingLong(p -> p.toFile().lastModified()))
+                .orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private void transcribeMainVideo() {
+        String v = mainVideoField.getText().trim();
+        if (v.isEmpty() || !Files.exists(Paths.get(v))) {
+            error("Escolha o video principal.");
+            return;
+        }
+        transcribe(Paths.get(v));
+    }
+
+    private void transcribeCutsSource() {
+        String v = cutsSourceField.getText().trim();
+        if (!v.isEmpty() && Files.exists(Paths.get(v))) {
+            transcribe(Paths.get(v));
+            return;
+        }
+        if (!cutsUrlField.getText().trim().isEmpty()) {
+            importCutsUrl(() -> {
+                String imported = cutsSourceField.getText().trim();
+                if (!imported.isEmpty()) transcribe(Paths.get(imported));
+            });
+            return;
+        }
+        error("Escolha um arquivo ou cole um link autorizado.");
+    }
+
+    private void transcribe(Path video) {
+        List<String> cmd = List.of(
+            "powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",
+            root.resolve("scripts/transcrever.ps1").toString(),
+            "-Video",video.toAbsolutePath().toString(),
+            "-Language",Objects.toString(language.getSelectedItem(),"pt"),
+            "-OutputDir",root.resolve("transcricoes").toString()
+        );
+        runProcess(cmd, "Transcricao concluida.", null);
+    }
+
+    private void generateCuts() {
+        String source = cutsSourceField.getText().trim();
+        if (!source.isEmpty() && Files.exists(Paths.get(source))) {
+            generateCutsFrom(Paths.get(source));
+            return;
+        }
+        if (!cutsUrlField.getText().trim().isEmpty()) {
+            importCutsUrl(() -> {
+                String imported = cutsSourceField.getText().trim();
+                if (!imported.isEmpty()) generateCutsFrom(Paths.get(imported));
+            });
+            return;
+        }
+        error("Escolha um arquivo local ou cole um link autorizado.");
+    }
+
+    private void generateCutsFrom(Path source) {
+        try {
+            Path promptFile = root.resolve("projetos/cortes-prompt.txt");
+            Files.writeString(promptFile, cutsPromptArea.getText(), StandardCharsets.UTF_8);
+
+            String format = cutFormat.getSelectedIndex() == 0 ? "vertical" : "horizontal";
+            List<String> cmd = List.of(
+                "powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",
+                root.resolve("scripts/cortes.ps1").toString(),
+                "-Video",source.toAbsolutePath().toString(),
+                "-PromptFile",promptFile.toString(),
+                "-Count",cutCount.getValue().toString(),
+                "-MinSeconds",cutMin.getValue().toString(),
+                "-MaxSeconds",cutMax.getValue().toString(),
+                "-Format",format,
+                "-VerticalMode",verticalModeCode(),
+                "-CaptionMode",cutCaptionCode(),
+                "-Language",Objects.toString(language.getSelectedItem(),"pt"),
+                "-Quality",qualityCode(),
+                "-OutputDir",root.resolve("final/cortes").toString()
+            );
+            runProcess(cmd, "Cortes gerados.", () -> openPath(root.resolve("final/cortes")));
+        } catch (IOException e) {
+            error(e.getMessage());
+        }
+    }
+
+    private void testNvenc() {
+        Path bat = root.resolve("TESTAR-NVENC.bat");
+        if (Files.exists(bat)) {
+            runProcess(List.of("cmd.exe","/c",bat.toString()), "Teste NVENC finalizado.", null);
+        } else {
+            error("TESTAR-NVENC.bat nao encontrado.");
+        }
+    }
+
+    private void clearCache() {
+        Path temp = root.resolve("temp");
+        try {
+            if (Files.exists(temp)) {
+                try (var stream = Files.walk(temp)) {
+                    stream.sorted(Comparator.reverseOrder())
+                        .filter(p -> !p.equals(temp))
+                        .forEach(p -> {
+                            try { Files.deleteIfExists(p); } catch (IOException ignored) {}
+                        });
+                }
+            }
+            Files.createDirectories(temp);
+            append("[OK] Cache limpo.");
+        } catch (IOException e) {
+            error(e.getMessage());
+        }
+    }
+
+    private void runProcess(List<String> cmd, String success, Runnable afterSuccess) {
+        setBusy(true);
         append("");
-        append("> Iniciando processo...");
+        append("> " + String.join(" ", cmd));
 
         new Thread(() -> {
+            int code = -1;
             try {
                 ProcessBuilder pb = new ProcessBuilder(cmd);
                 pb.directory(root.toFile());
@@ -714,33 +1541,29 @@ public class KodaCut extends JFrame {
                     String line;
                     while ((line = br.readLine()) != null) append(line);
                 }
-
-                int code = p.waitFor();
+                code = p.waitFor();
                 append(code == 0 ? "[OK] " + success : "[ERRO] Processo saiu com codigo " + code);
             } catch (Exception e) {
                 append("[ERRO] " + e.getMessage());
             } finally {
+                final int result = code;
                 SwingUtilities.invokeLater(() -> {
-                    renderButton.setEnabled(true);
-                    setupButton.setEnabled(true);
+                    setBusy(false);
+                    if (result == 0 && afterSuccess != null) afterSuccess.run();
                 });
             }
         }, "koda-cut-worker").start();
     }
 
-    private void openFinal() {
-        try {
-            Path p = Paths.get(outputField.getText().trim());
-            Files.createDirectories(p);
-            Desktop.getDesktop().open(p.toFile());
-        } catch (Exception e) {
-            error(e.getMessage());
-        }
+    private void setBusy(boolean busy) {
+        SwingUtilities.invokeLater(() -> {
+            renderButton.setEnabled(!busy);
+            setupButton.setEnabled(!busy);
+        });
     }
 
-    private void openLibrary() {
+    private void openPath(Path p) {
         try {
-            Path p = root.resolve("biblioteca");
             Files.createDirectories(p);
             Desktop.getDesktop().open(p.toFile());
         } catch (Exception e) {
@@ -774,7 +1597,7 @@ public class KodaCut extends JFrame {
     }
 
     private static class AssetTableModel extends AbstractTableModel {
-        private final String[] cols = {"ID para o prompt", "Tipo", "Arquivo", "Tamanho"};
+        private final String[] cols = {"ID para o KodaScript", "Tipo", "Arquivo", "Tamanho"};
         private List<Asset> assets = new ArrayList<>();
 
         void setAssets(List<Asset> list) {
