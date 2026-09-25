@@ -1,0 +1,40 @@
+KODA BRIDGE BETA - INSTALACAO NO CHROME / EDGE
+
+IMPORTANTE
+O navegador nao permite que um programa instale silenciosamente uma extensao de desenvolvimento.
+Por isso, no beta, existe UMA etapa manual de seguranca.
+
+CHROME
+1. Abra chrome://extensions
+2. Ative "Modo do desenvolvedor"
+3. Clique em "Carregar sem compactacao"
+4. Selecione a pasta:
+   extension-koda-bridge
+5. Abra https://chatgpt.com
+6. O painel "Koda Bridge" aparecera no canto inferior direito.
+
+EDGE
+1. Abra edge://extensions
+2. Ative "Modo do desenvolvedor"
+3. Clique em "Carregar sem compactacao"
+4. Selecione a pasta:
+   extension-koda-bridge
+5. Abra https://chatgpt.com
+
+COMO USAR
+1. Abra primeiro o Koda Connect.
+2. Coloque o video em KodaConnectWorkspace\videos
+3. Coloque imagens, audios, musicas e B-roll nas pastas correspondentes.
+4. Abra o ChatGPT no navegador.
+5. Clique em "ENVIAR PROJETO AO CHAT".
+6. Converse normalmente sobre a edicao e mande referencias.
+7. Quando estiver tudo definido, diga:
+   Pode comecar a editar.
+8. O ChatGPT deve responder com um KodaScript JSON em um bloco de codigo.
+9. Clique em "ENVIAR EDICAO PARA KODA".
+10. Confirme o video.
+11. Acompanhe o progresso no painel e no Koda Connect.
+
+OBSERVACAO
+Este beta nao usa MCP, API paga ou servidor externo.
+A extensao conversa somente com o servidor local do Koda Connect em 127.0.0.1:17777.
