@@ -15,26 +15,28 @@ Koda Music is the continuation of the project previously released as **Primo Mus
 > [!IMPORTANT]
 > Koda Music is not affiliated with, endorsed by, or connected to YouTube or Google.
 
-## Koda Music 3.11.0 — in development
+## Koda Music 3.11.0 — Windows portable
 
 3.11.0 is a major Windows redesign. The playback engine and account logic remain separate from the interface so the visual layer can evolve without destabilising music playback.
 
-Current 3.11 work includes:
+Version 3.11.0 includes:
 
 - a new Koda visual system built for desktop instead of reusing the previous Primo interface;
 - near-black themes with restrained purple accents and a monochrome option;
-- optional Liquid Glass, disabled automatically by Windows Game Mode;
+- clear, solid player controls that stay readable over album artwork;
 - richer Home with recent listening, playlists, liked music and real YouTube Music discovery shelves;
-- Explore with real YouTube Music moods and genres;
+- Explore with real YouTube Music moods and genres and original illustrated category cards;
 - search filters for songs, videos, albums, artists and playlists;
 - artist / album / playlist browse pages with playable results and related shelves when returned by YouTube Music;
 - library hub with liked songs, history and playlists;
 - queue, previous/next, shuffle, repeat, seek, mute and volume;
-- fullscreen now-playing experience with artwork-derived background and lyrics;
+- full-screen now-playing view inside the main window, with artwork-derived background, playback controls and lyrics;
 - direct Innertube playback with local NewPipeExtractor fallback;
 - deterministic shutdown of the mpv process owned by Koda Music.
 
-Downloads, local files and listening Replay/statistics have visible places in the new library architecture, but they are not presented as complete until their Windows implementations are actually validated.
+Windows does not provide music downloads or offline listening. "Ouvir juntos" is present in the interface; real synchronization needs testing with a configured server.
+
+The 3.11.0 interface has been reworked across the Home, navigation, settings and full-screen player. This source package has not passed a Windows build test yet; use the included run script on Windows to validate it before distribution.
 
 ## Build from source
 
@@ -49,6 +51,8 @@ Run the desktop app:
 ```powershell
 .\gradlew.bat :desktop:run
 ```
+
+You can also double-click `ABRIR-KODA-MUSIC.bat` after extracting the source ZIP. This runs Gradle to build and start the application locally; the ZIP itself does not contain a prebuilt EXE.
 
 Generate the verified portable package:
 
@@ -103,7 +107,7 @@ Public Piped/Invidious instances are not part of the normal playback path, and K
 
 ## Performance principles
 
-Koda is designed to look premium without making visual effects the main consumer of resources. Lists are lazy, background work is kept separate from rendering, Liquid Glass is optional, and Windows Game Mode reduces visual overhead without intentionally lowering the selected audio quality.
+Koda is designed to look premium without making visual effects the main consumer of resources. Lists are lazy, background work is kept separate from rendering, and Windows Game Mode reduces visual overhead without intentionally lowering the selected audio quality.
 
 ## Origin, license and attribution
 
