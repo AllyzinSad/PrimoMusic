@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   publish:
-    if: contains(github.event.head_commit.message, 'Release Koda Music 3.11.0')
+    if: contains(github.event.head_commit.message, 'Koda Music 3.11.0')
     runs-on: windows-latest
     timeout-minutes: 50
     steps:
@@ -31,4 +31,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v3.11.0 release/KodaMusic-3.11.0-Portable.zip --target "${{ github.sha }}" --title "Koda Music 3.11.0 — Windows Portable" --notes "Koda Music para Windows: visual renovado, logo oficial, cartões de gênero distintos, tema preto e branco corrigido e melhor desempenho. Extraia o ZIP e abra KodaMusic.exe. Java e mpv já estão incluídos. Sem download ou modo offline na versão Windows."
+          gh release upload v3.11.0 release/KodaMusic-3.11.0-Portable.zip --clobber
+          gh release edit v3.11.0 --notes "Koda Music para Windows: visual renovado, logo oficial, cartões de gênero distintos, tema preto e branco corrigido e melhor desempenho. Extraia o ZIP e abra KodaMusic.exe. Java e mpv já estão incluídos. Sem download ou modo offline na versão Windows. Código baseado no projeto de código aberto BitChord; créditos e licença GPLv3 acompanham o pacote e o código-fonte."
