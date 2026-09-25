@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Koda Cut v0.3
+title Koda Cut v0.4
 cd /d "%~dp0"
 
 where javac >nul 2>&1
@@ -15,7 +15,7 @@ if errorlevel 1 (
 
 if not exist "out" mkdir "out"
 
-echo Compilando Koda Cut v0.3...
+echo Compilando Koda Cut v0.4...
 javac -encoding UTF-8 --release 17 -d out src\kodacut\*.java
 if errorlevel 1 (
   echo.
