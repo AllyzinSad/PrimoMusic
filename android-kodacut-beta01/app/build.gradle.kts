@@ -8,8 +8,8 @@ android {
         applicationId = "com.koda.cut.beta"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3-beta"
+        versionCode = 5
+        versionName = "0.4-beta"
     }
 }
 
