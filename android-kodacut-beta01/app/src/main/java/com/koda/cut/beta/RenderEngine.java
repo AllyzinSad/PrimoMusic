@@ -194,6 +194,9 @@ public class RenderEngine {
         } else if ("1:1".equals(format)) {
             outW = 1080;
             outH = 1080;
+        } else if ("4:5".equals(format)) {
+            outW = 1080;
+            outH = 1350;
         }
 
         boolean hasMainAudio = hasAudio(mainFile);
@@ -214,6 +217,7 @@ public class RenderEngine {
 
         List<InputEvent> visualInputs = new ArrayList<>();
         List<InputEvent> audioInputs = new ArrayList<>();
+        List<InputEvent> videoLayerInputs = new ArrayList<>();
         int inputIndex = 1;
 
         for (int i = 0; i < timeline.length(); i++) {
@@ -235,6 +239,47 @@ public class RenderEngine {
                 }
             }
 
+            if ("video_layer".equals(action)) {
+                InputEvent input = findEvent(videoLayerInputs, i);
+                if (input == null) continue;
+
+                double start = Math.max(0, event.optDouble("start", 0) - clipStart);
+                double end = Math.max(start, event.optDouble("end", start + 1) - clipStart);
+                int width = event.optInt("width", Math.max(320, outW / 2));
+                double opacity = Math.max(0.0, Math.min(1.0, event.optDouble("opacity", 1.0)));
+
+                JSONObject crop = event.optJSONObject("crop");
+                String layer = "vl" + stage;
+                String next = "v" + stage;
+
+                filters.append("[").append(input.inputIndex).append(":v]");
+                if(crop != null){
+                    int cx = Math.max(0, crop.optInt("x", 0));
+                    int cy = Math.max(0, crop.optInt("y", 0));
+                    int cw = Math.max(2, crop.optInt("width", 2));
+                    int ch = Math.max(2, crop.optInt("height", 2));
+                    filters.append("crop=").append(cw).append(":").append(ch)
+                        .append(":").append(cx).append(":").append(cy).append(",");
+                }
+                filters.append("scale=").append(width).append(":-2,setsar=1");
+                if(opacity < 0.999){
+                    filters.append(",format=rgba,colorchannelmixer=aa=").append(fmt(opacity));
+                }
+                filters.append(",setpts=PTS-STARTPTS+").append(fmt(start)).append("/TB[")
+                    .append(layer).append("];");
+
+                String[] xy = overlayPosition(event.optString("position", "top-center"));
+
+                filters.append("[").append(currentVideo).append("][").append(layer)
+                    .append("]overlay=").append(xy[0]).append(":").append(xy[1])
+                    .append(":enable='between(t,").append(fmt(start)).append(",")
+                    .append(fmt(end)).append(")':eof_action=pass[")
+                    .append(next).append("];");
+
+                currentVideo = next;
+                stage++;
+            }
+
             if ("text".equals(action)) {
                 File file = createTextImage(event, fonts, cache, outW, i);
                 args.add("-loop");
@@ -242,6 +287,33 @@ public class RenderEngine {
                 args.add("-i");
                 args.add(file.getAbsolutePath());
                 visualInputs.add(new InputEvent(i, inputIndex++, event));
+            }
+
+            if ("video_layer".equals(action)) {
+                String assetId = event.optString("asset", "");
+                AssetRef ref = assets.get(assetId);
+                if (ref == null) throw new Exception("Asset não encontrado: " + assetId);
+
+                File file;
+                if ("video:principal".equals(assetId)) {
+                    file = mainFile;
+                } else {
+                    file = copyUri(Uri.parse(ref.uri), ref.name, cache, "layer_" + i);
+                }
+
+                double layerStart = Math.max(0, event.optDouble("start", 0));
+                double layerEnd = Math.max(layerStart, event.optDouble("end", layerStart + 1));
+                double sourceStart = Math.max(0, event.optDouble("source_start", 0));
+                double layerDuration = Math.max(0.05, layerEnd - layerStart);
+
+                args.add("-ss");
+                args.add(fmt(sourceStart));
+                args.add("-t");
+                args.add(fmt(layerDuration));
+                args.add("-i");
+                args.add(file.getAbsolutePath());
+
+                videoLayerInputs.add(new InputEvent(i, inputIndex++, event));
             }
 
             if ("sfx".equals(action) || "music".equals(action)) {
@@ -316,8 +388,14 @@ public class RenderEngine {
                 String ov = "ov" + stage;
                 String next = "v" + stage;
 
+                double opacity = Math.max(0.0, Math.min(1.0, event.optDouble("opacity", 1.0)));
+
                 filters.append("[").append(input.inputIndex).append(":v]")
-                    .append("scale=").append(width).append(":-1[").append(ov).append("];");
+                    .append("scale=").append(width).append(":-1");
+                if(opacity < 0.999){
+                    filters.append(",format=rgba,colorchannelmixer=aa=").append(fmt(opacity));
+                }
+                filters.append("[").append(ov).append("];");
 
                 String[] xy = overlayPosition(event.optString("position", "bottom-right"));
 
@@ -339,9 +417,10 @@ public class RenderEngine {
                 double end = Math.max(start, event.optDouble("end", start + 2) - clipStart);
                 String next = "v" + stage;
 
+                String[] txy = textPosition(event.optString("position", "bottom-center"));
                 filters.append("[").append(currentVideo).append("][")
                     .append(input.inputIndex).append(":v]")
-                    .append("overlay=(W-w)/2:H-h-120:")
+                    .append("overlay=").append(txy[0]).append(":").append(txy[1]).append(":")
                     .append("enable='between(t,").append(fmt(start)).append(",")
                     .append(fmt(end)).append(")':eof_action=repeat[")
                     .append(next).append("];");
@@ -650,12 +729,33 @@ public class RenderEngine {
                 return new String[]{"40", "40"};
             case "top-right":
                 return new String[]{"W-w-40", "40"};
+            case "top-center":
+                return new String[]{"(W-w)/2", "40"};
             case "bottom-left":
                 return new String[]{"40", "H-h-80"};
             case "center":
                 return new String[]{"(W-w)/2", "(H-h)/2"};
             default:
                 return new String[]{"W-w-40", "H-h-80"};
+        }
+    }
+
+    private String[] textPosition(String position) {
+        switch (position) {
+            case "top-left":
+                return new String[]{"40", "80"};
+            case "top-right":
+                return new String[]{"W-w-40", "80"};
+            case "top-center":
+                return new String[]{"(W-w)/2", "80"};
+            case "center":
+                return new String[]{"(W-w)/2", "(H-h)/2"};
+            case "bottom-left":
+                return new String[]{"40", "H-h-120"};
+            case "bottom-right":
+                return new String[]{"W-w-40", "H-h-120"};
+            default:
+                return new String[]{"(W-w)/2", "H-h-120"};
         }
     }
 
