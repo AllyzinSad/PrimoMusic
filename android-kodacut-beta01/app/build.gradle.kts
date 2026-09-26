@@ -8,7 +8,12 @@ android {
         applicationId = "com.koda.cut.beta"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1-beta"
+        versionCode = 4
+        versionName = "0.3-beta"
     }
+}
+
+
+dependencies {
+    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.8")
 }
