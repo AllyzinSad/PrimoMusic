@@ -239,47 +239,6 @@ public class RenderEngine {
                 }
             }
 
-            if ("video_layer".equals(action)) {
-                InputEvent input = findEvent(videoLayerInputs, i);
-                if (input == null) continue;
-
-                double start = Math.max(0, event.optDouble("start", 0) - clipStart);
-                double end = Math.max(start, event.optDouble("end", start + 1) - clipStart);
-                int width = event.optInt("width", Math.max(320, outW / 2));
-                double opacity = Math.max(0.0, Math.min(1.0, event.optDouble("opacity", 1.0)));
-
-                JSONObject crop = event.optJSONObject("crop");
-                String layer = "vl" + stage;
-                String next = "v" + stage;
-
-                filters.append("[").append(input.inputIndex).append(":v]");
-                if(crop != null){
-                    int cx = Math.max(0, crop.optInt("x", 0));
-                    int cy = Math.max(0, crop.optInt("y", 0));
-                    int cw = Math.max(2, crop.optInt("width", 2));
-                    int ch = Math.max(2, crop.optInt("height", 2));
-                    filters.append("crop=").append(cw).append(":").append(ch)
-                        .append(":").append(cx).append(":").append(cy).append(",");
-                }
-                filters.append("scale=").append(width).append(":-2,setsar=1");
-                if(opacity < 0.999){
-                    filters.append(",format=rgba,colorchannelmixer=aa=").append(fmt(opacity));
-                }
-                filters.append(",setpts=PTS-STARTPTS+").append(fmt(start)).append("/TB[")
-                    .append(layer).append("];");
-
-                String[] xy = overlayPosition(event.optString("position", "top-center"));
-
-                filters.append("[").append(currentVideo).append("][").append(layer)
-                    .append("]overlay=").append(xy[0]).append(":").append(xy[1])
-                    .append(":enable='between(t,").append(fmt(start)).append(",")
-                    .append(fmt(end)).append(")':eof_action=pass[")
-                    .append(next).append("];");
-
-                currentVideo = next;
-                stage++;
-            }
-
             if ("text".equals(action)) {
                 File file = createTextImage(event, fonts, cache, outW, i);
                 args.add("-loop");
@@ -403,6 +362,47 @@ public class RenderEngine {
                     .append("]overlay=").append(xy[0]).append(":").append(xy[1])
                     .append(":enable='between(t,").append(fmt(at)).append(",")
                     .append(fmt(end)).append(")':eof_action=repeat[")
+                    .append(next).append("];");
+
+                currentVideo = next;
+                stage++;
+            }
+
+            if ("video_layer".equals(action)) {
+                InputEvent input = findEvent(videoLayerInputs, i);
+                if (input == null) continue;
+
+                double start = Math.max(0, event.optDouble("start", 0) - clipStart);
+                double end = Math.max(start, event.optDouble("end", start + 1) - clipStart);
+                int width = event.optInt("width", Math.max(320, outW / 2));
+                double opacity = Math.max(0.0, Math.min(1.0, event.optDouble("opacity", 1.0)));
+
+                JSONObject crop = event.optJSONObject("crop");
+                String layer = "vl" + stage;
+                String next = "v" + stage;
+
+                filters.append("[").append(input.inputIndex).append(":v]");
+                if(crop != null){
+                    int cx = Math.max(0, crop.optInt("x", 0));
+                    int cy = Math.max(0, crop.optInt("y", 0));
+                    int cw = Math.max(2, crop.optInt("width", 2));
+                    int ch = Math.max(2, crop.optInt("height", 2));
+                    filters.append("crop=").append(cw).append(":").append(ch)
+                        .append(":").append(cx).append(":").append(cy).append(",");
+                }
+                filters.append("scale=").append(width).append(":-2,setsar=1");
+                if(opacity < 0.999){
+                    filters.append(",format=rgba,colorchannelmixer=aa=").append(fmt(opacity));
+                }
+                filters.append(",setpts=PTS-STARTPTS+").append(fmt(start)).append("/TB[")
+                    .append(layer).append("];");
+
+                String[] xy = overlayPosition(event.optString("position", "top-center"));
+
+                filters.append("[").append(currentVideo).append("][").append(layer)
+                    .append("]overlay=").append(xy[0]).append(":").append(xy[1])
+                    .append(":enable='between(t,").append(fmt(start)).append(",")
+                    .append(fmt(end)).append(")':eof_action=pass[")
                     .append(next).append("];");
 
                 currentVideo = next;
