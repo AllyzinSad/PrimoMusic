@@ -30,7 +30,11 @@ public class MainActivity extends Activity {
   final int BG=Color.rgb(10,10,10), PANEL=Color.rgb(24,24,24), FIELD=Color.rgb(36,36,36);
   final int GOLD=Color.rgb(212,175,55), TEXT=Color.rgb(245,245,245), MUTED=Color.rgb(165,165,165);
 
-  TextView scriptStatus;
+  TextView scriptStatus, renderStatus;
+  ProgressBar renderProgress;
+  Button renderButton, cancelRenderButton, openVideoButton;
+  RenderEngine renderEngine;
+  Uri lastOutputUri;
   String currentScript="";
 
   @Override public void onCreate(Bundle b){
@@ -52,12 +56,12 @@ public class MainActivity extends Activity {
     s.addView(r);
 
     r.addView(t("Koda Cut",28,true,TEXT));
-    TextView badge=t("ANDROID • BETA 0.2.1",12,true,GOLD);
+    TextView badge=t("ANDROID • BETA 0.3 RENDER",12,true,GOLD);
     badge.setPadding(0,dp(2),0,dp(14));
     r.addView(badge);
 
     TextView intro=t(
-      "Agora o app também recebe o KodaScript da IA, valida os assets e mostra um resumo antes da futura execução.",
+      "Editor automático local: organize os arquivos, envie o mapa para a IA, cole o KodaScript e renderize o vídeo.",
       14,false,MUTED
     );
     intro.setPadding(0,0,0,dp(16));
@@ -107,6 +111,29 @@ public class MainActivity extends Activity {
     review.setOnClickListener(v->reviewCurrentScript());
     r.addView(review,lp(8));
 
+    renderButton=btn("RENDERIZAR VÍDEO",true);
+    renderButton.setOnClickListener(v->startRender());
+    r.addView(renderButton,lp(18));
+
+    renderProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+    renderProgress.setMax(100);
+    renderProgress.setProgress(0);
+    r.addView(renderProgress,lp(10));
+
+    renderStatus=t("Aguardando render.",13,false,MUTED);
+    renderStatus.setPadding(dp(4),dp(6),dp(4),dp(4));
+    r.addView(renderStatus);
+
+    cancelRenderButton=btn("CANCELAR RENDER",false);
+    cancelRenderButton.setEnabled(false);
+    cancelRenderButton.setOnClickListener(v->cancelRender());
+    r.addView(cancelRenderButton,lp(8));
+
+    openVideoButton=btn("ABRIR / ASSISTIR VÍDEO",false);
+    openVideoButton.setEnabled(false);
+    openVideoButton.setOnClickListener(v->openLastVideo());
+    r.addView(openVideoButton,lp(8));
+
     Button clearScript=btn("REMOVER KODASCRIPT",false);
     clearScript.setOnClickListener(v->{
       currentScript="";
@@ -132,7 +159,7 @@ public class MainActivity extends Activity {
     r.addView(clear,lp(14));
 
     TextView foot=t(
-      "Beta 0.2 ainda NÃO renderiza. Este teste valida o caminho IA → KodaScript → Android antes de ligar o motor de vídeo.",
+      "Beta 0.3: primeiro motor de render local. Suporta corte simples, PNG, SFX, música, texto, fontes e zoom simples.",
       12,false,MUTED
     );
     foot.setPadding(0,dp(18),0,0);
@@ -280,7 +307,7 @@ public class MainActivity extends Activity {
     s.append("Use SOMENTE os IDs do MAPA DE ARQUIVOS. Não invente assets.\n");
     s.append("Quando eu disser \"pode começar a editar\", gere APENAS um KodaScript JSON em um único bloco de código.\n\n");
 
-    s.append("FORMATO KODASCRIPT ANDROID BETA 0.2:\n");
+    s.append("FORMATO KODASCRIPT ANDROID BETA 0.3:\n");
     s.append("{\n");
     s.append("  \"koda_version\": \"android-0.2\",\n");
     s.append("  \"format\": \"9:16\",\n");
@@ -290,17 +317,28 @@ public class MainActivity extends Activity {
     s.append("    {\"action\":\"sfx\",\"at\":1.3,\"asset\":\"audio:ID_DO_MAPA\",\"volume\":0.8},\n");
     s.append("    {\"action\":\"music\",\"start\":0.0,\"end\":20.0,\"asset\":\"music:ID_DO_MAPA\",\"volume\":0.12},\n");
     s.append("    {\"action\":\"zoom\",\"start\":2.0,\"end\":3.0,\"scale\":1.15},\n");
-    s.append("    {\"action\":\"text\",\"start\":3.0,\"end\":5.0,\"text\":\"TEXTO\"}\n");
+    s.append("    {\"action\":\"text\",\"start\":3.0,\"end\":5.0,\"text\":\"TEXTO\",\"font\":\"font:anton\"}\n");
     s.append("  ]\n");
     s.append("}\n\n");
 
     s.append("REGRAS:\n");
-    s.append("- koda_version deve ser android-0.2.\n");
+    s.append("- koda_version deve continuar android-0.2 por compatibilidade.\n");
+    s.append("- Use no máximo UM evento clip nesta primeira versão de render.\n");
     s.append("- timeline deve ser uma lista JSON.\n");
     s.append("- Todo campo asset deve usar exatamente um ID existente no mapa.\n");
     s.append("- Não use caminhos de arquivo do aparelho.\n");
     s.append("- start/end/at/duration devem estar em segundos.\n");
+    s.append("- Para textos, use opcionalmente o campo font com um dos IDs do PACK DE FONTES.\n");
+    s.append("- B-roll pode constar no mapa, mas esta primeira versão de render ainda não o executa.\n");
     s.append("- Se ainda não houver informação suficiente, continue conversando em vez de inventar.\n\n");
+
+    s.append("PACK DE FONTES DISPONÍVEIS:\n");
+    s.append("font:anton -> Anton [impacto forte / títulos]\n");
+    s.append("font:bebas_neue -> Bebas Neue [títulos altos / shorts]\n");
+    s.append("font:montserrat -> Montserrat [clean / profissional]\n");
+    s.append("font:poppins -> Poppins SemiBold [moderno / legendas]\n");
+    s.append("font:oswald -> Oswald [destaque / esportivo]\n");
+    s.append("font:bangers -> Bangers [meme / quadrinhos]\n\n");
 
     s.append("MAPA DE ARQUIVOS:\n");
     if(assets.isEmpty())s.append("(nenhum arquivo adicionado)\n");
@@ -388,7 +426,7 @@ public class MainActivity extends Activity {
       for(String id:v.assetRefs)m.append("• ").append(id).append("\n");
     }
 
-    m.append("\nNeste beta nada será renderizado ainda.");
+    m.append("\nKodaScript pronto para o primeiro motor de render.");
 
     new AlertDialog.Builder(this)
       .setTitle("Resumo da edição")
@@ -424,6 +462,7 @@ public class MainActivity extends Activity {
         "font:poppins","font:oswald","font:bangers"
       ));
       LinkedHashSet<String> fontRefs=new LinkedHashSet<>();
+      int clipCount=0;
 
       for(int i=0;i<timeline.length();i++){
         JSONObject ev=timeline.optJSONObject(i);
@@ -438,6 +477,7 @@ public class MainActivity extends Activity {
           return v;
         }
 
+        if("clip".equals(action))clipCount++;
         v.actionCounts.put(action,v.actionCounts.getOrDefault(action,0)+1);
 
         String timeError=validateTimes(ev,i+1);
@@ -448,6 +488,11 @@ public class MainActivity extends Activity {
 
         collectAssets(ev,refs);
         collectFonts(ev,fontRefs);
+      }
+
+      if(clipCount>1){
+        v.message="A Beta 0.3 aceita apenas um evento clip no primeiro motor de render.";
+        return v;
       }
 
       List<String> missing=new ArrayList<>();
@@ -545,16 +590,19 @@ public class MainActivity extends Activity {
     if(currentScript==null||currentScript.isBlank()){
       scriptStatus.setText("Nenhum KodaScript carregado.");
       scriptStatus.setTextColor(MUTED);
+      if(renderButton!=null)renderButton.setEnabled(false);
       return;
     }
 
     Validation v=validateScript(currentScript);
     if(v.ok){
-      scriptStatus.setText("KodaScript válido • "+v.events+" eventos • pronto para a próxima etapa");
+      scriptStatus.setText("KodaScript válido • "+v.events+" eventos • pronto para renderizar");
       scriptStatus.setTextColor(GOLD);
+      if(renderButton!=null)renderButton.setEnabled(true);
     }else{
       scriptStatus.setText("KodaScript salvo, mas agora está inválido: "+v.message);
       scriptStatus.setTextColor(Color.rgb(255,120,120));
+      if(renderButton!=null)renderButton.setEnabled(false);
     }
   }
 
@@ -643,6 +691,98 @@ public class MainActivity extends Activity {
         assets.add(new Asset(o.optString("s"),o.optString("n"),o.optString("u"),o.optString("i")));
       }
     }catch(Exception ignored){}
+  }
+
+  void startRender(){
+    Validation v=validateScript(currentScript);
+    if(!v.ok){
+      showError(v.message);
+      return;
+    }
+
+    LinkedHashMap<String,RenderEngine.AssetRef> map=new LinkedHashMap<>();
+    for(Asset a:assets){
+      map.put(a.id,new RenderEngine.AssetRef(a.id,a.name,a.uri));
+    }
+
+    renderEngine=new RenderEngine(this,map);
+    renderButton.setEnabled(false);
+    cancelRenderButton.setEnabled(true);
+    openVideoButton.setEnabled(false);
+    renderProgress.setProgress(0);
+    setRenderStatus("Preparando render...",GOLD);
+
+    renderEngine.render(currentScript,new RenderEngine.Callback(){
+      @Override public void onStage(String text){
+        runOnUiThread(()->setRenderStatus(text,GOLD));
+      }
+
+      @Override public void onProgress(int percent){
+        runOnUiThread(()->{
+          renderProgress.setProgress(percent);
+          setRenderStatus("Renderizando... "+percent+"%",GOLD);
+        });
+      }
+
+      @Override public void onCompleted(Uri outputUri){
+        lastOutputUri=outputUri;
+        runOnUiThread(()->{
+          renderProgress.setProgress(100);
+          setRenderStatus("Render concluído ✅",GOLD);
+          renderButton.setEnabled(true);
+          cancelRenderButton.setEnabled(false);
+          openVideoButton.setEnabled(true);
+          toast("Vídeo salvo em Movies/KodaCut.");
+        });
+      }
+
+      @Override public void onCancelled(){
+        runOnUiThread(()->{
+          setRenderStatus("Render cancelado.",MUTED);
+          renderButton.setEnabled(true);
+          cancelRenderButton.setEnabled(false);
+        });
+      }
+
+      @Override public void onError(String message){
+        runOnUiThread(()->{
+          setRenderStatus("Erro no render.",Color.rgb(255,120,120));
+          renderButton.setEnabled(true);
+          cancelRenderButton.setEnabled(false);
+          showError(message);
+        });
+      }
+    });
+  }
+
+  void cancelRender(){
+    if(renderEngine!=null&&renderEngine.isRunning()){
+      renderEngine.cancel();
+      setRenderStatus("Cancelando...",MUTED);
+    }
+  }
+
+  void openLastVideo(){
+    if(lastOutputUri==null){
+      toast("Nenhum vídeo renderizado nesta sessão.");
+      return;
+    }
+
+    try{
+      Intent i=new Intent(Intent.ACTION_VIEW);
+      i.setDataAndType(lastOutputUri,"video/mp4");
+      i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      startActivity(i);
+    }catch(Exception e){
+      toast("Vídeo salvo, mas não encontrei um player compatível.");
+    }
+  }
+
+  void setRenderStatus(String value,int color){
+    if(renderStatus!=null){
+      renderStatus.setText(value);
+      renderStatus.setTextColor(color);
+    }
   }
 
   void showError(String message){
