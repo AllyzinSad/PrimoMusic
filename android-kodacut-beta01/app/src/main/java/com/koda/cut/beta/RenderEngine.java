@@ -93,8 +93,8 @@ public class RenderEngine {
 
                 callback.onStage("Iniciando motor de vídeo...");
 
-                FFmpegSession session = FFmpegKit.executeAsync(
-                    plan.command,
+                FFmpegSession session = FFmpegKit.executeWithArgumentsAsync(
+                    plan.arguments,
                     completed -> {
                         activeSessionId = -1;
                         ReturnCode code = completed.getReturnCode();
@@ -193,11 +193,14 @@ public class RenderEngine {
 
         boolean hasMainAudio = hasAudio(mainFile);
 
-        StringBuilder command = new StringBuilder();
-        command.append("-y ");
-        command.append("-ss ").append(fmt(clipStart))
-            .append(" -t ").append(fmt(duration))
-            .append(" -i ").append(q(mainFile.getAbsolutePath())).append(" ");
+        List<String> args = new ArrayList<>();
+        args.add("-y");
+        args.add("-ss");
+        args.add(fmt(clipStart));
+        args.add("-t");
+        args.add(fmt(duration));
+        args.add("-i");
+        args.add(mainFile.getAbsolutePath());
 
         List<InputEvent> visualInputs = new ArrayList<>();
         List<InputEvent> audioInputs = new ArrayList<>();
@@ -214,7 +217,10 @@ public class RenderEngine {
                     if (ref == null) throw new Exception("Asset não encontrado: " + assetId);
 
                     File file = copyUri(Uri.parse(ref.uri), ref.name, cache, "img_" + i);
-                    command.append("-loop 1 -i ").append(q(file.getAbsolutePath())).append(" ");
+                    args.add("-loop");
+                    args.add("1");
+                    args.add("-i");
+                    args.add(file.getAbsolutePath());
                     visualInputs.add(new InputEvent(i, inputIndex++, event));
                 }
             }
@@ -225,7 +231,8 @@ public class RenderEngine {
                 if (ref == null) throw new Exception("Asset não encontrado: " + assetId);
 
                 File file = copyUri(Uri.parse(ref.uri), ref.name, cache, "aud_" + i);
-                command.append("-i ").append(q(file.getAbsolutePath())).append(" ");
+                args.add("-i");
+                args.add(file.getAbsolutePath());
                 audioInputs.add(new InputEvent(i, inputIndex++, event));
             }
         }
@@ -323,8 +330,8 @@ public class RenderEngine {
                 String next = "v" + stage;
 
                 filters.append("[").append(currentVideo).append("]drawtext=")
-                    .append("fontfile=").append(filterEscape(font.getAbsolutePath())).append(":")
-                    .append("text=").append(filterEscape(escapeDrawText(value))).append(":")
+                    .append("fontfile='").append(filterEscape(font.getAbsolutePath())).append("':")
+                    .append("text='").append(filterEscape(escapeDrawText(value))).append("':")
                     .append("fontsize=").append(size).append(":")
                     .append("fontcolor=white:borderw=4:bordercolor=black@0.85:")
                     .append("x=(w-text_w)/2:y=h-text_h-180:")
@@ -396,14 +403,31 @@ public class RenderEngine {
         File output = new File(cache,
             "koda_render_" + System.currentTimeMillis() + ".mp4");
 
-        command.append("-filter_complex ").append(dq(filters.toString())).append(" ");
-        command.append("-map [").append(currentVideo).append("] -map [aout] ");
-        command.append("-c:v mpeg4 -q:v 4 -pix_fmt yuv420p ");
-        command.append("-c:a aac -b:a 192k -ar 44100 ");
-        command.append("-t ").append(fmt(duration)).append(" -movflags +faststart ");
-        command.append(q(output.getAbsolutePath()));
+        args.add("-filter_complex");
+        args.add(filters.toString());
+        args.add("-map");
+        args.add("[" + currentVideo + "]");
+        args.add("-map");
+        args.add("[aout]");
+        args.add("-c:v");
+        args.add("mpeg4");
+        args.add("-q:v");
+        args.add("4");
+        args.add("-pix_fmt");
+        args.add("yuv420p");
+        args.add("-c:a");
+        args.add("aac");
+        args.add("-b:a");
+        args.add("192k");
+        args.add("-ar");
+        args.add("44100");
+        args.add("-t");
+        args.add(fmt(duration));
+        args.add("-movflags");
+        args.add("+faststart");
+        args.add(output.getAbsolutePath());
 
-        return new RenderPlan(command.toString(), output, durationMs);
+        return new RenderPlan(args.toArray(new String[0]), output, durationMs);
     }
 
     private boolean hasAudio(File file) {
@@ -575,16 +599,6 @@ public class RenderEngine {
         return String.format(Locale.US, "%.3f", value);
     }
 
-    private String q(String text) {
-        return "'" + text.replace("'", "'\\''") + "'";
-    }
-
-    private String dq(String text) {
-        return "\"" + text
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"") + "\"";
-    }
-
     private String filterEscape(String text) {
         return text
             .replace("\\", "\\\\")
@@ -620,12 +634,12 @@ public class RenderEngine {
     }
 
     private static class RenderPlan {
-        final String command;
+        final String[] arguments;
         final File outputFile;
         final long durationMs;
 
-        RenderPlan(String command, File outputFile, long durationMs) {
-            this.command = command;
+        RenderPlan(String[] arguments, File outputFile, long durationMs) {
+            this.arguments = arguments;
             this.outputFile = outputFile;
             this.durationMs = durationMs;
         }
