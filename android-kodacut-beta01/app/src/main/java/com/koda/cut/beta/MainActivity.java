@@ -56,12 +56,12 @@ public class MainActivity extends Activity {
     s.addView(r);
 
     r.addView(t("Koda Cut",28,true,TEXT));
-    TextView badge=t("ANDROID • BETA 0.3 RENDER",12,true,GOLD);
+    TextView badge=t("ANDROID • BETA 0.4 TOOLS",12,true,GOLD);
     badge.setPadding(0,dp(2),0,dp(14));
     r.addView(badge);
 
     TextView intro=t(
-      "Editor automático local: organize os arquivos, envie o mapa para a IA, cole o KodaScript e renderize o vídeo.",
+      "Editor automático local com ferramentas genéricas de composição. A IA decide a edição com você; o Koda Cut executa.",
       14,false,MUTED
     );
     intro.setPadding(0,0,0,dp(16));
@@ -159,7 +159,7 @@ public class MainActivity extends Activity {
     r.addView(clear,lp(14));
 
     TextView foot=t(
-      "Beta 0.3: primeiro motor de render local. Suporta corte simples, PNG, SFX, música, texto, fontes e zoom simples.",
+      "Beta 0.4: amplia o motor com composição em camadas, reenquadramento, formatos e posicionamento genérico.",
       12,false,MUTED
     );
     foot.setPadding(0,dp(18),0,0);
@@ -307,7 +307,7 @@ public class MainActivity extends Activity {
     s.append("Use SOMENTE os IDs do MAPA DE ARQUIVOS. Não invente assets.\n");
     s.append("Quando eu disser \"pode começar a editar\", gere APENAS um KodaScript JSON em um único bloco de código.\n\n");
 
-    s.append("FORMATO KODASCRIPT ANDROID BETA 0.3:\n");
+    s.append("FORMATO KODASCRIPT ANDROID BETA 0.4:\n");
     s.append("{\n");
     s.append("  \"koda_version\": \"android-0.2\",\n");
     s.append("  \"format\": \"9:16\",\n");
@@ -317,7 +317,8 @@ public class MainActivity extends Activity {
     s.append("    {\"action\":\"sfx\",\"at\":1.3,\"asset\":\"audio:ID_DO_MAPA\",\"volume\":0.8},\n");
     s.append("    {\"action\":\"music\",\"start\":0.0,\"end\":20.0,\"asset\":\"music:ID_DO_MAPA\",\"volume\":0.12},\n");
     s.append("    {\"action\":\"zoom\",\"start\":2.0,\"end\":3.0,\"scale\":1.15},\n");
-    s.append("    {\"action\":\"text\",\"start\":3.0,\"end\":5.0,\"text\":\"TEXTO\",\"font\":\"font:anton\"}\n");
+    s.append("    {\"action\":\"text\",\"start\":3.0,\"end\":5.0,\"text\":\"TEXTO\",\"font\":\"font:anton\",\"position\":\"bottom-center\"},\n");
+    s.append("    {\"action\":\"video_layer\",\"asset\":\"video:principal\",\"start\":0.0,\"end\":8.0,\"source_start\":0.0,\"crop\":{\"x\":0,\"y\":0,\"width\":640,\"height\":360},\"width\":520,\"position\":\"top-center\",\"audio\":false}\n");
     s.append("  ]\n");
     s.append("}\n\n");
 
@@ -329,7 +330,10 @@ public class MainActivity extends Activity {
     s.append("- Não use caminhos de arquivo do aparelho.\n");
     s.append("- start/end/at/duration devem estar em segundos.\n");
     s.append("- Para textos, use opcionalmente o campo font com um dos IDs do PACK DE FONTES.\n");
-    s.append("- B-roll pode constar no mapa, mas esta primeira versão de render ainda não o executa.\n");
+    s.append("- video_layer pode reutilizar o vídeo principal ou usar um ID video:* do mapa.\n");
+    s.append("- video_layer aceita crop {x,y,width,height}, width, position, source_start e audio.\n");
+    s.append("- Para composição de live/reels, o mesmo vídeo pode aparecer em mais de uma camada com crops diferentes.\n");
+    s.append("- Formatos suportados nesta beta: 9:16, 16:9, 1:1 e 4:5.\n");
     s.append("- Se ainda não houver informação suficiente, continue conversando em vez de inventar.\n\n");
 
     s.append("PACK DE FONTES DISPONÍVEIS:\n");
@@ -488,6 +492,28 @@ public class MainActivity extends Activity {
 
         collectAssets(ev,refs);
         collectFonts(ev,fontRefs);
+
+        if("video_layer".equals(action)){
+          String asset=ev.optString("asset","");
+          if(asset.isEmpty()){
+            v.message="Evento "+(i+1)+": video_layer precisa de asset.";
+            return v;
+          }
+          JSONObject crop=ev.optJSONObject("crop");
+          if(crop!=null){
+            String[] ck={"x","y","width","height"};
+            for(String k:ck){
+              if(!crop.has(k)||!(crop.opt(k) instanceof Number)){
+                v.message="Evento "+(i+1)+": crop precisa de x, y, width e height numéricos.";
+                return v;
+              }
+            }
+            if(crop.optDouble("width",0)<=0||crop.optDouble("height",0)<=0){
+              v.message="Evento "+(i+1)+": crop width/height precisam ser maiores que zero.";
+              return v;
+            }
+          }
+        }
       }
 
       if(clipCount>1){
