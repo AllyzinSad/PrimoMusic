@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
     s.addView(r);
 
     r.addView(t("Koda Cut",28,true,TEXT));
-    TextView badge=t("ANDROID • BETA 0.2",12,true,GOLD);
+    TextView badge=t("ANDROID • BETA 0.2.1",12,true,GOLD);
     badge.setPadding(0,dp(2),0,dp(14));
     r.addView(badge);
 
@@ -68,6 +68,24 @@ public class MainActivity extends Activity {
     sector(r,"sfx","EFEITOS SONOROS","Adicionar efeitos","audio/*",SFX,true);
     sector(r,"music","MÚSICAS","Adicionar músicas","audio/*",MUSIC,true);
     sector(r,"broll","B-ROLL","Adicionar B-roll","video/*",BROLL,true);
+
+    LinearLayout fontCard=new LinearLayout(this);
+    fontCard.setOrientation(LinearLayout.VERTICAL);
+    fontCard.setPadding(dp(14),dp(14),dp(14),dp(14));
+    fontCard.setBackgroundColor(PANEL);
+    fontCard.addView(t("PACK DE FONTES",15,true,TEXT));
+    TextView fonts=t(
+      "font:anton — Impacto forte / títulos\n"+
+      "font:bebas_neue — Títulos altos / shorts\n"+
+      "font:montserrat — Clean / profissional\n"+
+      "font:poppins — Moderno / legendas\n"+
+      "font:oswald — Destaque / esportivo\n"+
+      "font:bangers — Meme / quadrinhos",
+      12,false,MUTED
+    );
+    fonts.setPadding(0,dp(8),0,0);
+    fontCard.addView(fonts);
+    rootAdd(r,fontCard,12);
 
     Button copy=btn("COPIAR MAPA PARA IA",true);
     copy.setOnClickListener(v->copyProject());
@@ -401,6 +419,11 @@ public class MainActivity extends Activity {
       for(Asset a:assets)validIds.add(a.id);
 
       LinkedHashSet<String> refs=new LinkedHashSet<>();
+      Set<String> validFonts=new LinkedHashSet<>(Arrays.asList(
+        "font:anton","font:bebas_neue","font:montserrat",
+        "font:poppins","font:oswald","font:bangers"
+      ));
+      LinkedHashSet<String> fontRefs=new LinkedHashSet<>();
 
       for(int i=0;i<timeline.length();i++){
         JSONObject ev=timeline.optJSONObject(i);
@@ -424,11 +447,22 @@ public class MainActivity extends Activity {
         }
 
         collectAssets(ev,refs);
+        collectFonts(ev,fontRefs);
       }
 
       List<String> missing=new ArrayList<>();
       for(String id:refs){
         if(!validIds.contains(id))missing.add(id);
+      }
+
+      List<String> missingFonts=new ArrayList<>();
+      for(String id:fontRefs){
+        if(!validFonts.contains(id))missingFonts.add(id);
+      }
+
+      if(!missingFonts.isEmpty()){
+        v.message="O KodaScript usa fontes que não existem no pack:\\n\\n"+String.join("\\n",missingFonts);
+        return v;
       }
 
       if(!missing.isEmpty()){
@@ -441,6 +475,7 @@ public class MainActivity extends Activity {
       v.format=root.optString("format","não informado");
       v.events=timeline.length();
       v.assetRefs.addAll(refs);
+      v.fontRefs.addAll(fontRefs);
       v.message="OK";
       return v;
 
@@ -470,6 +505,22 @@ public class MainActivity extends Activity {
       if(end<start)return "Evento "+number+": end não pode ser menor que start.";
     }
     return null;
+  }
+
+  void collectFonts(Object node,Set<String> refs) throws Exception{
+    if(node instanceof JSONObject){
+      JSONObject o=(JSONObject)node;
+      Iterator<String> keys=o.keys();
+      while(keys.hasNext()){
+        String k=keys.next();
+        Object val=o.get(k);
+        if("font".equals(k)&&val instanceof String)refs.add((String)val);
+        else collectFonts(val,refs);
+      }
+    } else if(node instanceof JSONArray){
+      JSONArray a=(JSONArray)node;
+      for(int i=0;i<a.length();i++)collectFonts(a.get(i),refs);
+    }
   }
 
   void collectAssets(Object node,Set<String> refs) throws Exception{
@@ -602,6 +653,10 @@ public class MainActivity extends Activity {
       .show();
   }
 
+  void rootAdd(LinearLayout root,LinearLayout child,int top){
+    root.addView(child,lp(top));
+  }
+
   Button btn(String s,boolean primary){
     Button b=new Button(this);
     b.setText(s);
@@ -650,6 +705,7 @@ public class MainActivity extends Activity {
     String message="",version="",format="";
     int events=0;
     final LinkedHashSet<String> assetRefs=new LinkedHashSet<>();
+    final LinkedHashSet<String> fontRefs=new LinkedHashSet<>();
     final LinkedHashMap<String,Integer> actionCounts=new LinkedHashMap<>();
   }
 }
