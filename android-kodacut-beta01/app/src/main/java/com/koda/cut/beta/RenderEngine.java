@@ -119,9 +119,9 @@ public class RenderEngine {
                     },
                     log -> {},
                     statistics -> {
-                        long ms = statistics.getTime();
+                        double ms = statistics.getTime();
                         int p = (int)Math.max(0, Math.min(99,
-                            (ms * 100L) / Math.max(1L, plan.durationMs)));
+                            (ms * 100.0) / Math.max(1L, plan.durationMs)));
                         callback.onProgress(p);
                     }
                 );
