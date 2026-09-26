@@ -398,7 +398,7 @@ public class RenderEngine {
 
         command.append("-filter_complex ").append(q(filters.toString())).append(" ");
         command.append("-map [").append(currentVideo).append("] -map [aout] ");
-        command.append("-c:v libx264 -preset veryfast -crf 22 -pix_fmt yuv420p ");
+        command.append("-c:v mpeg4 -q:v 4 -pix_fmt yuv420p ");
         command.append("-c:a aac -b:a 192k -ar 44100 ");
         command.append("-t ").append(fmt(duration)).append(" -movflags +faststart ");
         command.append(q(output.getAbsolutePath()));
