@@ -9,7 +9,7 @@ concurrency:
 jobs:
   build-dev-debug:
     timeout-minutes: 30
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/koda-android-final-3110'
     runs-on: ubuntu-latest
 
     steps:
@@ -80,3 +80,34 @@ jobs:
       with:
         name: KodaMusic-Android-Release-Signed
         path: app/build/outputs/apk/prod/release/*.apk
+
+  build-final-unsigned:
+    if: github.ref == 'refs/heads/koda-android-final-3110'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    - name: Set up properties
+      run: |
+        echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" > local.properties
+        echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
+    - name: Validate image resources
+      run: python3 .github/scripts/check_android_pngs.py
+    - name: Build production release unsigned
+      run: |
+        chmod +x gradlew
+        ./gradlew -PincludeAndroid=true :app:assembleProdRelease
+    - name: Align APK for signing
+      run: |
+        mkdir -p dist
+        zipalign -f -p 4 app/build/outputs/apk/prod/release/app-prod-universal-release-unsigned.apk dist/KodaMusic-3.11.0-universal-aligned-unsigned.apk
+        cp "${ANDROID_HOME}/build-tools/36.0.0/lib/apksigner.jar" dist/
+    - uses: actions/upload-artifact@v4
+      with:
+        name: KodaMusic-Android-Final-Unsigned
+        path: dist/
