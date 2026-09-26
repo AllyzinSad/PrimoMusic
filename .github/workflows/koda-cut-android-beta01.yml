@@ -1,8 +1,8 @@
-name: Koda Cut Android Beta 0.2
+name: Koda Cut Android Beta 0.2.1 Fonts
 
 on:
   push:
-    branches: [koda-cut-android-beta02]
+    branches: [koda-cut-android-beta021-fonts]
   workflow_dispatch:
 
 jobs:
@@ -28,6 +28,17 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
+      - name: Download bundled font pack
+        shell: bash
+        run: |
+          mkdir -p android-kodacut-beta01/app/src/main/assets/fonts
+          curl -L --fail -o android-kodacut-beta01/app/src/main/assets/fonts/Anton-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf"
+          curl -L --fail -o android-kodacut-beta01/app/src/main/assets/fonts/BebasNeue-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/bebasneue/BebasNeue-Regular.ttf"
+          curl -L --fail -o android-kodacut-beta01/app/src/main/assets/fonts/Montserrat.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf"
+          curl -L --fail -o android-kodacut-beta01/app/src/main/assets/fonts/Poppins-SemiBold.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-SemiBold.ttf"
+          curl -L --fail -o android-kodacut-beta01/app/src/main/assets/fonts/Oswald.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/Oswald%5Bwght%5D.ttf"
+          curl -L --fail -o android-kodacut-beta01/app/src/main/assets/fonts/Bangers-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/bangers/Bangers-Regular.ttf"
+
       - name: Build debug APK
         working-directory: android-kodacut-beta01
         env:
@@ -38,5 +49,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: KodaCut-Android-Beta02
+          name: KodaCut-Android-Beta021-Fonts
           path: android-kodacut-beta01/app/build/outputs/apk/debug/app-debug.apk
