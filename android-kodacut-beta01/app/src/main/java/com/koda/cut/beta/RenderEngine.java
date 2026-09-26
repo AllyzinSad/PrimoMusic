@@ -114,7 +114,7 @@ public class RenderEngine {
                             String output = completed.getOutput();
                             String fail = completed.getFailStackTrace();
                             String detail = output != null && !output.trim().isEmpty() ? tail(output, 2200) : fail;
-                            callback.onError(detail == null ? "O motor de vídeo retornou erro." : detail);
+                            callback.onError(detail == null ? "O motor de vídeo retornou erro." : "FFmpeg:\n" + detail);
                         }
                     },
                     log -> {},
@@ -323,8 +323,8 @@ public class RenderEngine {
                 String next = "v" + stage;
 
                 filters.append("[").append(currentVideo).append("]drawtext=")
-                    .append("fontfile=").append(filterQ(font.getAbsolutePath())).append(":")
-                    .append("text=").append(filterQ(escapeDrawText(value))).append(":")
+                    .append("fontfile=").append(filterEscape(font.getAbsolutePath())).append(":")
+                    .append("text=").append(filterEscape(escapeDrawText(value))).append(":")
                     .append("fontsize=").append(size).append(":")
                     .append("fontcolor=white:borderw=4:bordercolor=black@0.85:")
                     .append("x=(w-text_w)/2:y=h-text_h-180:")
@@ -396,7 +396,7 @@ public class RenderEngine {
         File output = new File(cache,
             "koda_render_" + System.currentTimeMillis() + ".mp4");
 
-        command.append("-filter_complex ").append(q(filters.toString())).append(" ");
+        command.append("-filter_complex ").append(dq(filters.toString())).append(" ");
         command.append("-map [").append(currentVideo).append("] -map [aout] ");
         command.append("-c:v mpeg4 -q:v 4 -pix_fmt yuv420p ");
         command.append("-c:a aac -b:a 192k -ar 44100 ");
@@ -579,11 +579,17 @@ public class RenderEngine {
         return "'" + text.replace("'", "'\\''") + "'";
     }
 
-    private String filterQ(String text) {
-        return "'" + text
+    private String dq(String text) {
+        return "\"" + text
             .replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace(":", "\\:") + "'";
+            .replace("\"", "\\\"") + "\"";
+    }
+
+    private String filterEscape(String text) {
+        return text
+            .replace("\\", "\\\\")
+            .replace(":", "\\:")
+            .replace("'", "\\'");
     }
 
     private String escapeDrawText(String text) {
