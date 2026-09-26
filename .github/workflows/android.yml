@@ -105,7 +105,7 @@ jobs:
     - name: Align APK for signing
       run: |
         mkdir -p dist
-        zipalign -f -p 4 app/build/outputs/apk/prod/release/app-prod-universal-release-unsigned.apk dist/KodaMusic-3.11.0-universal-aligned-unsigned.apk
+        "${ANDROID_HOME}/build-tools/36.0.0/zipalign" -f -p 4 app/build/outputs/apk/prod/release/app-prod-universal-release-unsigned.apk dist/KodaMusic-3.11.0-universal-aligned-unsigned.apk
         cp "${ANDROID_HOME}/build-tools/36.0.0/lib/apksigner.jar" dist/
     - uses: actions/upload-artifact@v4
       with:
