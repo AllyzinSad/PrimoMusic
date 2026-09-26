@@ -4,6 +4,11 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -202,6 +207,11 @@ public class RenderEngine {
         args.add("-i");
         args.add(mainFile.getAbsolutePath());
 
+        Map<String, File> fonts = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : fontFiles.entrySet()) {
+            fonts.put(entry.getKey(), copyFont(entry.getValue(), cache));
+        }
+
         List<InputEvent> visualInputs = new ArrayList<>();
         List<InputEvent> audioInputs = new ArrayList<>();
         int inputIndex = 1;
@@ -225,6 +235,15 @@ public class RenderEngine {
                 }
             }
 
+            if ("text".equals(action)) {
+                File file = createTextImage(event, fonts, cache, outW, i);
+                args.add("-loop");
+                args.add("1");
+                args.add("-i");
+                args.add(file.getAbsolutePath());
+                visualInputs.add(new InputEvent(i, inputIndex++, event));
+            }
+
             if ("sfx".equals(action) || "music".equals(action)) {
                 String assetId = event.optString("asset", "");
                 AssetRef ref = assets.get(assetId);
@@ -235,11 +254,6 @@ public class RenderEngine {
                 args.add(file.getAbsolutePath());
                 audioInputs.add(new InputEvent(i, inputIndex++, event));
             }
-        }
-
-        Map<String, File> fonts = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : fontFiles.entrySet()) {
-            fonts.put(entry.getKey(), copyFont(entry.getValue(), cache));
         }
 
         StringBuilder filters = new StringBuilder();
@@ -318,25 +332,19 @@ public class RenderEngine {
             }
 
             if ("text".equals(action)) {
+                InputEvent input = findEvent(visualInputs, i);
+                if (input == null) continue;
+
                 double start = Math.max(0, event.optDouble("start", 0) - clipStart);
                 double end = Math.max(start, event.optDouble("end", start + 2) - clipStart);
-                String value = event.optString("text", "");
-                String fontId = event.optString("font", "font:poppins");
-                File font = fonts.get(fontId);
-
-                if (font == null) font = fonts.get("font:poppins");
-
-                int size = event.optInt("size", Math.max(42, outW / 16));
                 String next = "v" + stage;
 
-                filters.append("[").append(currentVideo).append("]drawtext=")
-                    .append("fontfile='").append(filterEscape(font.getAbsolutePath())).append("':")
-                    .append("text='").append(filterEscape(escapeDrawText(value))).append("':")
-                    .append("fontsize=").append(size).append(":")
-                    .append("fontcolor=white:borderw=4:bordercolor=black@0.85:")
-                    .append("x=(w-text_w)/2:y=h-text_h-180:")
+                filters.append("[").append(currentVideo).append("][")
+                    .append(input.inputIndex).append(":v]")
+                    .append("overlay=(W-w)/2:H-h-120:")
                     .append("enable='between(t,").append(fmt(start)).append(",")
-                    .append(fmt(end)).append(")'[").append(next).append("];");
+                    .append(fmt(end)).append(")':eof_action=repeat[")
+                    .append(next).append("];");
 
                 currentVideo = next;
                 stage++;
@@ -553,6 +561,66 @@ public class RenderEngine {
         return out;
     }
 
+    private File createTextImage(
+        JSONObject event,
+        Map<String, File> fonts,
+        File dir,
+        int outW,
+        int eventIndex
+    ) throws Exception {
+        String text = event.optString("text", "");
+        String fontId = event.optString("font", "font:poppins");
+        File fontFile = fonts.get(fontId);
+        if (fontFile == null) fontFile = fonts.get("font:poppins");
+
+        int bitmapWidth = Math.max(480, outW - 80);
+        int bitmapHeight = Math.max(180, outW / 4);
+        int textSize = event.optInt("size", Math.max(42, outW / 16));
+
+        Bitmap bitmap = Bitmap.createBitmap(
+            bitmapWidth,
+            bitmapHeight,
+            Bitmap.Config.ARGB_8888
+        );
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(Color.TRANSPARENT);
+
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTypeface(Typeface.createFromFile(fontFile));
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(textSize);
+
+        float maxWidth = bitmapWidth - 40f;
+        while (paint.measureText(text) > maxWidth && textSize > 28) {
+            textSize -= 2;
+            paint.setTextSize(textSize);
+        }
+
+        Paint.FontMetrics fm = paint.getFontMetrics();
+        float x = bitmapWidth / 2f;
+        float y = (bitmapHeight - fm.bottom - fm.top) / 2f;
+
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(Math.max(4f, textSize / 14f));
+        paint.setColor(Color.BLACK);
+        canvas.drawText(text, x, y, paint);
+
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.WHITE);
+        canvas.drawText(text, x, y, paint);
+
+        File out = new File(dir, "text_" + eventIndex + ".png");
+        try (FileOutputStream stream = new FileOutputStream(out)) {
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                throw new Exception("Não consegui preparar o texto da edição.");
+            }
+        } finally {
+            bitmap.recycle();
+        }
+
+        return out;
+    }
+
     private void copy(InputStream in, OutputStream out) throws Exception {
         byte[] buffer = new byte[1024 * 1024];
         int read;
@@ -597,21 +665,6 @@ public class RenderEngine {
 
     private String fmt(double value) {
         return String.format(Locale.US, "%.3f", value);
-    }
-
-    private String filterEscape(String text) {
-        return text
-            .replace("\\", "\\\\")
-            .replace(":", "\\:")
-            .replace("'", "\\'");
-    }
-
-    private String escapeDrawText(String text) {
-        return text
-            .replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace(":", "\\:")
-            .replace("%", "\\%");
     }
 
     private String tail(String value, int max) {
